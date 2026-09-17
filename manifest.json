@@ -1,0 +1,10 @@
+{
+  "id": "cover-banner",
+  "name": "Cover Banner",
+  "version": "0.5.2",
+  "minAppVersion": "1.4.0",
+  "description": "Cinematic cover banners with autoset, icons, parallax, property and title controls, and polished Markdown styling.",
+  "author": "Joseph Frimpong",
+  "authorUrl": "https://github.com/frimpsjoek",
+  "isDesktopOnly": false
+}

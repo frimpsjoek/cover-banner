@@ -1,0 +1,654 @@
+/* Cover Banner styles */
+.cover-banner {
+  position: relative;
+  z-index: 30;
+  isolation: isolate;
+  width: 100%;
+  height: var(--cover-banner-height, 240px);
+  overflow: hidden;
+  border-radius: var(--cover-banner-radius, 14px);
+  margin: 0 0 16px 0;
+  /* if the image gets translated for parallax, don't show transparent gaps */
+  background: var(--background-primary);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.14);
+}
+
+/* Built-in abstract minimalist fallback when no banner src exists */
+.cover-banner.is-default {
+  background: var(--cover-banner-default-bg,
+    radial-gradient(120% 150% at 12% 18%, rgba(83, 145, 180, 0.62) 0%, rgba(83, 145, 180, 0) 58%),
+    radial-gradient(120% 150% at 84% 12%, rgba(104, 76, 116, 0.48) 0%, rgba(104, 76, 116, 0) 56%),
+    radial-gradient(120% 160% at 58% 88%, rgba(66, 123, 104, 0.5) 0%, rgba(66, 123, 104, 0) 62%),
+    linear-gradient(180deg, #304c5a 0%, #26383c 52%, #18221f 100%)
+  );
+}
+
+.cover-banner__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: var(--cover-banner-fit, cover);
+  filter: saturate(1.06) contrast(1.04);
+  z-index: 0;
+}
+
+/* Dim overlay */
+.cover-banner::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(5, 16, 24, 0.04) 0%, rgba(5, 16, 24, 0.12) 48%, rgba(5, 16, 24, 0.42) 100%),
+    rgba(0, 0, 0, var(--cover-banner-dim, 0.18));
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Optional bottom fade: blend image into note background */
+.cover-banner[data-fade]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 72%;
+  /* fade to the theme background so the banner "disappears" at the bottom */
+  background: linear-gradient(to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    color-mix(in srgb, var(--background-primary) 5%, transparent) 28%,
+    color-mix(in srgb, var(--background-primary) 42%, transparent) 68%,
+    var(--background-primary) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Hide rendered properties without changing the note's YAML/frontmatter. */
+.cover-banner__properties-hidden {
+  display: none !important;
+}
+
+/* Pinning is now class-driven to avoid attribute/theme collisions */
+.cover-banner.cover-banner--pinned {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 40 !important;
+}
+
+.cover-banner__icon {
+  position: absolute;
+  left: var(--cover-banner-content-left, 20px);
+  bottom: 8px;
+  z-index: 3;
+  width: auto;
+  height: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52px;
+  line-height: 1;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.cover-banner__icon-img {
+  width: 52px;
+  height: 52px;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
+}
+
+/* Notion-style action buttons row */
+.cover-banner__actions {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
+  pointer-events: none;
+  transition: opacity 120ms cubic-bezier(0.22, 0.61, 0.36, 1),
+    transform 120ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.cover-banner__action {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0,0,0,0.30);
+  border: none;
+  color: var(--text-normal);
+
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  outline: none;
+  box-shadow: none;
+}
+
+.cover-banner__action:hover {
+  background: rgba(0,0,0,0.42);
+}
+
+.cover-banner__action svg {
+  width: 22px;
+  height: 22px;
+}
+
+/* Keep the cover calm until it is being used; keyboard focus also reveals actions. */
+.cover-banner:hover .cover-banner__actions,
+.cover-banner:focus-within .cover-banner__actions {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.cover-banner__action:focus-visible {
+  outline: 2px solid var(--text-accent);
+  outline-offset: 2px;
+}
+
+/* Touch devices have no hover state, so keep actions available there. */
+@media (hover: none) {
+  .cover-banner__actions {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cover-banner__actions {
+    transition: none;
+  }
+}
+
+/* Dashboard */
+.cover-banner-dashboard {
+  padding: 12px;
+}
+
+.cover-banner-dashboard__header h3 {
+  margin: 0;
+}
+
+.cover-banner-dashboard__sub {
+  opacity: 0.7;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.cover-banner-dashboard__actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.cover-banner-dashboard__row {
+  display: grid;
+  grid-template-columns: 110px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.cover-banner-dashboard__label {
+  opacity: 0.85;
+  font-size: 12px;
+}
+
+.cover-banner-dashboard__value {
+  opacity: 0.8;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.cover-banner-dashboard input[type="text"],
+.cover-banner-dashboard input[type="password"],
+.cover-banner-dashboard select {
+  width: 100%;
+}
+
+/* Pexels picker UI */
+.cover-banner-picker__row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.cover-banner-picker__row label {
+  min-width: 54px;
+  opacity: 0.8;
+}
+.cover-banner-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.cover-banner-picker__item {
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.cover-banner-picker__item img {
+  width: 100%;
+  height: 130px;
+  object-fit: cover;
+  display: block;
+}
+.cover-banner-picker__credit {
+  font-size: 11px;
+  padding: 6px 8px;
+  opacity: 0.75;
+}
+.cover-banner-picker__status {
+  opacity: 0.8;
+  padding: 8px 0;
+}
+.cover-banner-picker__item.is-loading {
+  opacity: 0.6;
+}
+
+/* ─── Emoji & Icon Picker Modal ─── */
+.cover-banner-icon-picker {
+  padding: 0;
+}
+
+.cb-icon-picker__tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 10px;
+}
+
+.cb-icon-picker__tab {
+  flex: 1;
+  padding: 10px 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.cb-icon-picker__tab:hover {
+  color: var(--text-normal);
+}
+
+.cb-icon-picker__tab.is-active {
+  color: var(--text-accent);
+  border-bottom-color: var(--text-accent);
+}
+
+.cb-icon-picker__body {
+  padding: 0 4px;
+}
+
+.cb-icon-picker__search {
+  width: 100%;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 13px;
+  outline: none;
+}
+
+.cb-icon-picker__search:focus {
+  border-color: var(--text-accent);
+}
+
+.cb-icon-picker__search-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.cb-icon-picker__search-row input {
+  flex: 1;
+}
+
+.cb-icon-picker__search-row button {
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.cb-icon-picker__search-row button:hover {
+  background: var(--interactive-hover);
+}
+
+/* Emoji grid: 8 columns, 40x40 cells */
+.cb-icon-picker__emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.cb-icon-picker__emoji-cell {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cb-icon-picker__emoji-cell:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* Icon grid: 6 columns, 48x48 cells */
+.cb-icon-picker__icon-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.cb-icon-picker__icon-cell {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cb-icon-picker__icon-cell:hover {
+  background: var(--background-modifier-hover);
+}
+
+.cb-icon-picker__icon-cell svg {
+  width: 28px;
+  height: 28px;
+  fill: var(--text-normal);
+}
+
+.cb-icon-picker__status {
+  font-size: 12px;
+  opacity: 0.7;
+  padding: 6px 0;
+}
+
+.cb-icon-picker__empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 20px 0;
+  opacity: 0.6;
+  font-size: 13px;
+}
+
+.cb-icon-picker__footer {
+  padding: 8px 4px 4px;
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 10px;
+}
+
+.cb-icon-picker__clear {
+  width: 100%;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid var(--background-modifier-border);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.cb-icon-picker__clear:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-error);
+}
+
+/* Iconify SVG in banner icon element */
+.cover-banner__icon svg {
+  width: 46px;
+  height: 46px;
+  fill: var(--text-normal);
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.4));
+}
+
+/* ─── Optional note presentation ───────────────────────────────────────── */
+
+/* Apply the selected face to prose in both Reading view and Live Preview.
+   Code keeps its own monospace face so JSON, JSONL, and fenced code remain legible. */
+.cover-banner--content-font .markdown-preview-view,
+.cover-banner--content-font .markdown-source-view .cm-content,
+.cover-banner--content-font .markdown-source-view .cm-line {
+  font-family: var(--cover-banner-content-font, var(--font-text));
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+.cover-banner--content-font .markdown-preview-view :is(pre, code),
+.cover-banner--content-font .markdown-source-view :is(.cm-inline-code, .HyperMD-codeblock) {
+  font-family: var(--font-monospace, "SFMono-Regular", Consolas, monospace);
+  font-feature-settings: "kern" 1, "liga" 0;
+}
+
+.cover-banner--hide-title .inline-title {
+  display: none !important;
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view {
+  --cb-content-gap: clamp(0.75rem, 1.8vw, 1.25rem);
+  --cb-surface: color-mix(in srgb, var(--background-secondary) 72%, transparent);
+  --cb-surface-strong: color-mix(in srgb, var(--background-secondary) 88%, transparent);
+  --cb-line: color-mix(in srgb, var(--text-normal) 14%, transparent);
+  --cb-accent-soft: color-mix(in srgb, var(--text-accent) 12%, transparent);
+  line-height: 1.72;
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .markdown-preview-sizer > :is(h1, h2, h3, h4, h5, h6) {
+  letter-spacing: -0.018em;
+  line-height: 1.2;
+  margin-top: calc(var(--cb-content-gap) * 1.6);
+  margin-bottom: calc(var(--cb-content-gap) * 0.55);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .markdown-preview-sizer > h1 {
+  font-size: clamp(1.8rem, 3vw, 2.5rem);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .markdown-preview-sizer > h2 {
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--cb-line);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .markdown-preview-sizer > p,
+.cover-banner--enhanced-markdown .markdown-preview-view .markdown-preview-sizer > ul,
+.cover-banner--enhanced-markdown .markdown-preview-view .markdown-preview-sizer > ol {
+  margin-block: var(--cb-content-gap);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition: color 120ms ease, text-decoration-color 120ms ease;
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view blockquote {
+  margin-block: var(--cb-content-gap);
+  padding: 0.8rem 1rem;
+  border-left: 3px solid color-mix(in srgb, var(--text-accent) 62%, transparent);
+  border-radius: 0 10px 10px 0;
+  background: var(--cb-accent-soft);
+  color: var(--text-muted);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view hr {
+  margin-block: calc(var(--cb-content-gap) * 1.5);
+  border: 0;
+  border-top: 1px solid var(--cb-line);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view table {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  margin-block: var(--cb-content-gap);
+  border: 1px solid var(--cb-line);
+  border-radius: 10px;
+  border-spacing: 0;
+  background: var(--cb-surface);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view th,
+.cover-banner--enhanced-markdown .markdown-preview-view td {
+  padding: 0.55rem 0.8rem;
+  border-right: 1px solid var(--cb-line);
+  border-bottom: 1px solid var(--cb-line);
+  vertical-align: top;
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view th {
+  background: var(--cb-surface-strong);
+  color: var(--text-normal);
+  font-weight: 650;
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view tr:last-child td {
+  border-bottom: 0;
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view :is(th, td):last-child {
+  border-right: 0;
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view :is(pre, .cm-preview-code-block) {
+  margin-block: var(--cb-content-gap);
+  border: 1px solid var(--cb-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--background-secondary) 82%, var(--background-primary));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view pre > code,
+.cover-banner--enhanced-markdown .markdown-preview-view .cm-preview-code-block {
+  font-size: 0.88em;
+  line-height: 1.62;
+}
+
+/* JSON and JSONL get a quiet editor-like treatment without changing content. */
+.cover-banner--enhanced-markdown .markdown-preview-view pre:has(> code.language-json),
+.cover-banner--enhanced-markdown .markdown-preview-view pre:has(> code.language-jsonl),
+.cover-banner--enhanced-markdown .markdown-preview-view pre:has(> code.language-json-lines) {
+  border-left: 3px solid color-mix(in srgb, var(--color-blue) 70%, var(--text-accent));
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view pre code.language-json,
+.cover-banner--enhanced-markdown .markdown-preview-view pre code.language-jsonl,
+.cover-banner--enhanced-markdown .markdown-preview-view pre code.language-json-lines {
+  white-space: pre;
+  tab-size: 2;
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view :is(.token.property, .token.attr-name) {
+  color: var(--color-blue);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .token.string {
+  color: var(--color-green);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .token.number {
+  color: var(--color-orange);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .token.boolean,
+.cover-banner--enhanced-markdown .markdown-preview-view .token.keyword {
+  color: var(--color-purple);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .token.null {
+  color: var(--color-red);
+}
+
+/* LaTeX/math blocks are given breathing room and safe horizontal scrolling. */
+.cover-banner--enhanced-markdown .markdown-preview-view :is(.math-block, .math.math-block) {
+  margin-block: calc(var(--cb-content-gap) * 1.15);
+  padding: 1rem 1.15rem;
+  overflow-x: auto;
+  border: 1px solid var(--cb-line);
+  border-left: 3px solid color-mix(in srgb, var(--color-purple) 70%, var(--text-accent));
+  border-radius: 0 12px 12px 0;
+  background: var(--cb-surface);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view :is(.math-inline, .math.math-inline) {
+  padding: 0.08em 0.28em;
+  border-radius: 4px;
+  background: var(--cb-accent-soft);
+}
+
+/* Common AI transcript labels: User:, Assistant:, System:, Developer:, Tool:. */
+.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-message {
+  margin-block: 0.8rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--cb-line);
+  border-left: 3px solid var(--text-muted);
+  border-radius: 0 12px 12px 0;
+  background: var(--cb-surface);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-message strong:first-child {
+  margin-right: 0.35rem;
+  color: var(--text-accent);
+  font-weight: 700;
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-system {
+  border-left-color: var(--color-purple);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-developer {
+  border-left-color: var(--color-blue);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-user {
+  border-left-color: var(--color-green);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-assistant {
+  border-left-color: var(--color-orange);
+}
+
+.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-tool {
+  border-left-color: var(--color-red);
+}
