@@ -1239,13 +1239,13 @@ module.exports = class CoverBannerPlugin extends Plugin {
     banner.toggleAttribute("data-fade", !!this.settings.fadeBottom);
     banner.classList.toggle("cover-banner--pinned", isPinned);
     if (isPinned) {
-      banner.style.setProperty("position", "sticky", "important");
-      banner.style.setProperty("top", "0", "important");
-      banner.style.setProperty("z-index", "40", "important");
+      banner.style.setProperty("position", "sticky");
+      banner.style.setProperty("top", "0");
+      banner.style.setProperty("z-index", "40");
     } else {
-      banner.style.setProperty("position", "relative", "important");
-      banner.style.setProperty("top", "auto", "important");
-      banner.style.setProperty("z-index", "30", "important");
+      banner.style.setProperty("position", "relative");
+      banner.style.setProperty("top", "auto");
+      banner.style.setProperty("z-index", "30");
     }
 
     let imgEl = null;

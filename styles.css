@@ -66,15 +66,15 @@
 }
 
 /* Hide rendered properties without changing the note's YAML/frontmatter. */
-.cover-banner__properties-hidden {
-  display: none !important;
+.view-content .cover-banner__properties-hidden {
+  display: none;
 }
 
 /* Pinning is now class-driven to avoid attribute/theme collisions */
-.cover-banner.cover-banner--pinned {
-  position: sticky !important;
-  top: 0 !important;
-  z-index: 40 !important;
+.view-content .cover-banner.cover-banner--pinned {
+  position: sticky;
+  top: 0;
+  z-index: 40;
 }
 
 .cover-banner__icon {
@@ -461,8 +461,8 @@
   font-feature-settings: "kern" 1, "liga" 0;
 }
 
-.cover-banner--hide-title .inline-title {
-  display: none !important;
+.view-content .cover-banner--hide-title .inline-title {
+  display: none;
 }
 
 .cover-banner--enhanced-markdown .markdown-preview-view {
@@ -497,8 +497,6 @@
 }
 
 .cover-banner--enhanced-markdown .markdown-preview-view a {
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
   transition: color 120ms ease, text-decoration-color 120ms ease;
 }
 
@@ -566,9 +564,11 @@
 }
 
 /* JSON and JSONL get a quiet editor-like treatment without changing content. */
-.cover-banner--enhanced-markdown .markdown-preview-view pre:has(> code.language-json),
-.cover-banner--enhanced-markdown .markdown-preview-view pre:has(> code.language-jsonl),
-.cover-banner--enhanced-markdown .markdown-preview-view pre:has(> code.language-json-lines) {
+.cover-banner--enhanced-markdown .markdown-preview-view pre > code.language-json,
+.cover-banner--enhanced-markdown .markdown-preview-view pre > code.language-jsonl,
+.cover-banner--enhanced-markdown .markdown-preview-view pre > code.language-json-lines {
+  display: block;
+  padding-left: 0.9rem;
   border-left: 3px solid color-mix(in srgb, var(--color-blue) 70%, var(--text-accent));
 }
 
