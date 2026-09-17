@@ -1,57 +1,146 @@
 # Cover Banner
 
-Displays a Notion-style banner at the top of notes in **Reading view** and **Live Preview**.
+Give Obsidian notes a calm, cinematic reading experience with Notion-style cover banners, subtle motion, note icons, and refined Markdown typography.
 
-Frontmatter fields:
-- Primary: `cover` (auto-set writes here)
-- Fallbacks: `coverFilename`, `banner`
-- Note icon: `favicon`
+## What it adds
 
-Supported banner values:
-- `"[[image.png]]"`
-- `"image.png"`
-- `"path/to/image.png"`
-- `"https://..."`
+- Cinematic cover banners with a natural bottom fade
+- Larger banner controls that appear on hover
+- URL- and book-based automatic banner selection
+- Optional Pexels image picker
+- Emoji, Iconify, favicon, and local-image note icons
+- Parallax motion, sticky banners, height, dimming, radius, and fit controls
+- Hideable properties and note titles
+- Enhanced styling for Markdown, code, JSON, JSONL, LaTeX, and AI transcripts
+- Content font presets for reading, technical notes, and long-form writing
+- A dashboard for per-note and global settings
 
-Notes without a custom banner use a cinematic misty evergreen mountain image from [Unsplash](https://unsplash.com/photos/white-fog-on-forest-jew8Kj3nFSs) by default. Replace it in Settings → Cover Banner → Default banner if you prefer another image.
+## Quick start
 
-Supported note icon values:
-- Emoji, like `"📝"`
-- Iconify icon, like `"iconify:bx:bxs-flask"`
-- Favicon/image URL, like `"https://abs.twimg.com/favicons/twitter-pip.3.ico"`
-- Local favicon/image path, like `"favicons/1.ico"`
+1. Open **Settings → Community plugins → Browse**.
+2. Search for **Cover Banner**.
+3. Install and enable it.
+4. Open the command palette and run **Cover Banner: Open dashboard**.
+5. Choose a banner, adjust the appearance, and save.
 
-## Enable
-Obsidian → Settings → Community plugins → (turn off Restricted mode if needed) → Installed plugins → enable **Cover Banner**.
+The plugin works in both **Reading view** and **Live Preview**.
 
-## Auto-set behavior
-If a note has no banner set, the plugin will try:
-1) If frontmatter contains a URL (keys include `URL` and `url` by default) → fetch `og:image` / `twitter:image` and download it.
-2) Otherwise → query Google Books using the note title and download the cover.
+## Add a banner to a note
 
-Notes without existing YAML frontmatter are supported. The plugin can auto-create frontmatter keys when setting a banner.
+Add a supported field to the note’s YAML frontmatter:
 
-Use **Hide inline properties** in the dashboard or settings to hide the rendered properties block while preserving the note's frontmatter data.
+```yaml
+---
+cover: "[[.attachments/banners/my-banner.jpg]]"
+---
+```
 
-Use **Hide note title** to remove the rendered title while keeping the filename unchanged. **Enhanced Markdown styling** improves reading-view typography and presentation for headings, links, tables, lists, code, JSON/JSONL, and LaTeX. **AI chat formatting** recognizes common `System:`, `Developer:`, `User:`, `Assistant:`, and `Tool:` transcript labels.
+Supported banner formats include:
 
-Use **Content font** in the dashboard or settings to choose the note's prose font. **Inter** is the recommended all-round choice for mixed Markdown and AI notes; **Source Serif 4** suits long-form reading, and **IBM Plex Mono** suits technical notes. Code blocks always retain a monospace font.
+```yaml
+cover: "[[image.png]]"
+cover: "image.png"
+cover: "path/to/image.png"
+cover: "https://example.com/image.jpg"
+```
 
-If no valid image source resolves, the plugin still renders a default placeholder banner shell and action icons (when banner buttons are enabled), so you can set/fix a banner quickly.
+The primary field is `cover`. The fallback fields `coverFilename` and `banner` are also supported.
 
-Favicon/icon URLs are ignored as banner sources so they do not render as oversized banners. Put them in the `favicon` field to show them as the small note icon.
+## Automatic banners
 
-If the note icon is set with an empty value, the plugin uses a default note emoji (`📝`) unless you explicitly clear it.
+When a note has no banner, **Auto-set banner (URL/Book)** tries to:
 
-Downloaded banners are saved to `.attachments/banners/` by default.
+1. Find a page URL in fields such as `URL`, `url`, `source`, `link`, or `href`.
+2. Download the page’s Open Graph or Twitter image.
+3. Fall back to a Google Books cover based on the note title.
+4. Use the default cinematic nature image if no source resolves.
 
-## Manual triggers
-- Ribbon icon: **Open Cover Banner dashboard**
-- Command palette:
-  - **Cover Banner: Open dashboard**
-  - **Cover Banner: Auto-set banner (URL/Book)**
-  - **Cover Banner: Pick banner from Pexels…**
-  - **Cover Banner: Clear invalid banner field (if not an image)**
+Downloaded banners are saved in `.attachments/banners/` by default.
 
-## Customize
-Settings → Cover Banner.
+## Note icons
+
+Set the `favicon` field to add a small icon beside the note title:
+
+```yaml
+---
+favicon: "🧪"
+---
+```
+
+Supported values include emoji, Iconify icons, favicon or image URLs, and local image paths. Icons are kept separate from banner sources, so a favicon will not become an oversized cover image.
+
+## Appearance controls
+
+Open the Cover Banner dashboard or plugin settings to control:
+
+| Option | What it changes |
+| --- | --- |
+| Height | Cover height in pixels |
+| Dim | Image darkness and text contrast |
+| Bottom fade | Blends the image naturally into the note |
+| Sticky pin | Keeps the banner visible while scrolling |
+| Parallax | Adds gentle depth while scrolling |
+| Radius | Rounds the banner corners |
+| Fit | Controls how the image fills the cover |
+| Banner buttons | Shows or hides hover controls |
+| Hide properties | Hides rendered properties without removing frontmatter |
+| Hide note title | Hides the rendered title without renaming the file |
+
+## Markdown and AI notes
+
+Enhanced Markdown styling improves headings, links, lists, tables, blockquotes, callouts, code blocks, JSON, JSONL, and LaTeX.
+
+Common AI transcript labels are formatted automatically:
+
+```text
+System:
+Developer:
+User:
+Assistant:
+Tool:
+```
+
+## Content fonts
+
+Use **Content font** in the dashboard or settings to choose the note’s prose font:
+
+- **Inter** — best general-purpose choice for mixed notes
+- **Source Serif 4** — comfortable for long-form reading
+- **IBM Plex Mono** — ideal for technical notes and logs
+
+Code blocks continue to use a monospace font for readability.
+
+## Commands
+
+- **Cover Banner: Open dashboard**
+- **Cover Banner: Auto-set banner (URL/Book)**
+- **Cover Banner: Pick banner from Pexels…**
+- **Cover Banner: Clear invalid banner field**
+
+You can also open the dashboard from the Cover Banner ribbon icon.
+
+## Settings and privacy
+
+API keys are entered locally in plugin settings and are not included in the plugin release. The published repository does not contain your `data.json` settings file.
+
+Pexels and Pixabay are optional. You can use local images, URLs, Google Books, and the default banner without configuring an image-provider key.
+
+## Troubleshooting
+
+**The banner is not showing**
+
+- Confirm the note is in Reading view or Live Preview.
+- Check that the image path exists inside the vault.
+- Run **Clear invalid banner field**, then set the banner again.
+
+**The icon appears as a banner**
+
+- Put the value in `favicon`, not `cover`.
+
+**The properties are still visible**
+
+- Enable **Hide properties** in the dashboard or plugin settings. This changes presentation only; it does not delete frontmatter.
+
+## License
+
+Cover Banner is released under the [MIT License](./LICENSE).
