@@ -1,4 +1,4 @@
-# Cover Banner
+# Cinematic Covers
 
 Give Obsidian notes a calm, cinematic reading experience with Notion-style cover banners, subtle motion, note icons, and refined Markdown typography.
 
@@ -18,9 +18,9 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 ## Quick start
 
 1. Open **Settings → Community plugins → Browse**.
-2. Search for **Cover Banner**.
+2. Search for **Cinematic Covers**.
 3. Install and enable it.
-4. Open the command palette and run **Cover Banner: Open dashboard**.
+4. Open the command palette and run **Cinematic Covers: Open dashboard**.
 5. Choose a banner, adjust the appearance, and save.
 
 The plugin works in both **Reading view** and **Live Preview**.
@@ -71,7 +71,7 @@ Supported values include emoji, Iconify icons, favicon or image URLs, and local 
 
 ## Appearance controls
 
-Open the Cover Banner dashboard or plugin settings to control:
+Open the Cinematic Covers dashboard or plugin settings to control:
 
 | Option | What it changes |
 | --- | --- |
@@ -112,12 +112,12 @@ Code blocks continue to use a monospace font for readability.
 
 ## Commands
 
-- **Cover Banner: Open dashboard**
-- **Cover Banner: Auto-set banner (URL/Book)**
-- **Cover Banner: Pick banner from Pexels…**
-- **Cover Banner: Clear invalid banner field**
+- **Cinematic Covers: Open dashboard**
+- **Cinematic Covers: Auto-set banner (URL/Book)**
+- **Cinematic Covers: Pick banner from Pexels…**
+- **Cinematic Covers: Clear invalid banner field**
 
-You can also open the dashboard from the Cover Banner ribbon icon.
+You can also open the dashboard from the Cinematic Covers ribbon icon.
 
 ## Settings and privacy
 
@@ -143,4 +143,4 @@ Pexels and Pixabay are optional. You can use local images, URLs, Google Books, a
 
 ## License
 
-Cover Banner is released under the [MIT License](./LICENSE).
+Cinematic Covers is released under the [MIT License](./LICENSE).

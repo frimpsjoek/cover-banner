@@ -1,5 +1,5 @@
 /*
-Cover Banner (Obsidian plugin)
+Cinematic Covers (Obsidian plugin)
 
 v0.5.2-local
 - One ribbon icon opens a RIGHT-PANEL dashboard (like Notion controls)
@@ -284,7 +284,7 @@ class PexelsPickerModal extends Modal {
 
       const key = (this.plugin.settings.pexelsApiKey || "").trim();
       if (!key) {
-        new Notice("Cover Banner: set Pexels API key in plugin settings");
+        new Notice("Cinematic Covers: set Pexels API key in plugin settings");
         return;
       }
 
@@ -323,18 +323,18 @@ class PexelsPickerModal extends Modal {
           const localLink = await this.plugin.downloadImageToVault(full, `pexels-${this.file.basename}`);
           if (localLink) {
             await this.plugin.setFrontmatterPrimary(this.file, localLink);
-            new Notice("Cover Banner: banner set from Pexels");
+            new Notice("Cinematic Covers: banner set from Pexels");
             this.plugin.requestRefresh();
             this.close();
           } else {
             // Fallback to remote URL if binary download fails in the local environment.
             try {
               await this.plugin.setFrontmatterPrimary(this.file, full);
-              new Notice("Cover Banner: banner set from Pexels URL");
+              new Notice("Cinematic Covers: banner set from Pexels URL");
               this.plugin.requestRefresh();
               this.close();
             } catch {
-              new Notice("Cover Banner: failed to set image");
+              new Notice("Cinematic Covers: failed to set image");
               item.removeClass("is-loading");
             }
           }
@@ -531,7 +531,7 @@ class CoverBannerDashboardView extends ItemView {
   }
 
   getDisplayText() {
-    return "Cover Banner";
+    return "Cinematic Covers";
   }
 
   getIcon() {
@@ -552,7 +552,7 @@ class CoverBannerDashboardView extends ItemView {
     el.addClass("cover-banner-dashboard");
 
     const header = el.createDiv({ cls: "cover-banner-dashboard__header" });
-    header.createEl("h3", { text: "Cover Banner" });
+    header.createEl("h3", { text: "Cinematic Covers" });
 
     const file = this.plugin.getCurrentMarkdownFile();
     const fileName = file?.basename || "(no note selected)";
@@ -569,11 +569,11 @@ class CoverBannerDashboardView extends ItemView {
     mkBtn("Auto-set banner (URL/Book)", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cover Banner: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       const ok = await this.plugin.autoSetForFile(f, { force: true, createEmptyOnFail: true });
-      new Notice(ok ? "Cover Banner: banner set" : "Cover Banner: no banner found");
+      new Notice(ok ? "Cinematic Covers: banner set" : "Cinematic Covers: no banner found");
       this.plugin.requestRefresh();
       this.render();
     });
@@ -581,7 +581,7 @@ class CoverBannerDashboardView extends ItemView {
     mkBtn("Pick banner from Pexels…", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cover Banner: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       new PexelsPickerModal(this.app, this.plugin, f).open();
@@ -590,7 +590,7 @@ class CoverBannerDashboardView extends ItemView {
     mkBtn("Clear invalid coverFilename", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cover Banner: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       const cleared = await this.plugin.clearInvalidPrimaryField(f);
@@ -610,7 +610,7 @@ class CoverBannerDashboardView extends ItemView {
     iconSave.addEventListener("click", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cover Banner: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       await this.plugin.setFaviconField(f, iconInput.value.trim());
@@ -619,7 +619,7 @@ class CoverBannerDashboardView extends ItemView {
     iconClear.addEventListener("click", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cover Banner: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       await this.plugin.setFaviconField(f, "", { allowEmpty: true });
@@ -679,7 +679,7 @@ class CoverBannerDashboardView extends ItemView {
     pinToggle.addEventListener("change", async () => {
       this.plugin.settings.pinBanner = !!pinToggle.checked;
       await this.plugin.saveSettings();
-      new Notice(`Cover Banner: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
+      new Notice(`Cinematic Covers: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
       this.plugin.refreshAllViewBanners();
       this.plugin.refreshDashboard();
     });
@@ -802,7 +802,7 @@ class CoverBannerDashboardView extends ItemView {
     keyInput.addEventListener("change", async () => {
       this.plugin.settings.pexelsApiKey = keyInput.value;
       await this.plugin.saveSettings();
-      new Notice("Cover Banner: saved Pexels key");
+      new Notice("Cinematic Covers: saved Pexels key");
     });
   }
 }
@@ -878,7 +878,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     if (didMigrate) {
       // persist migration so data.json reflects the active settings
       await this.saveData(this.settings);
-      new Notice("Cover Banner: migrated settings (primary field = cover)");
+      new Notice("Cinematic Covers: migrated settings (primary field = cover)");
       console.log("CoverBanner: migrated settings", this.settings);
     }
 
@@ -891,7 +891,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     this.registerView(VIEW_TYPE, (leaf) => new CoverBannerDashboardView(leaf, this));
 
     // SINGLE ribbon icon: open dashboard
-    this.addRibbonIcon("layout-dashboard", "Cover Banner dashboard", async () => {
+    this.addRibbonIcon("layout-dashboard", "Cinematic Covers dashboard", async () => {
       await this.openDashboard();
     });
 
@@ -922,7 +922,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
       callback: async () => {
         const file = this.getCurrentMarkdownFile();
         if (!looksLikeMarkdownFile(file)) {
-          new Notice("Cover Banner: no active note");
+          new Notice("Cinematic Covers: no active note");
           return;
         }
         new PexelsPickerModal(this.app, this, file).open();
@@ -935,11 +935,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
       callback: async () => {
         const file = this.getCurrentMarkdownFile();
         if (!looksLikeMarkdownFile(file)) {
-          new Notice("Cover Banner: no active note");
+          new Notice("Cinematic Covers: no active note");
           return;
         }
         const ok = await this.autoSetForFile(file, { force: true, createEmptyOnFail: true });
-        new Notice(ok ? "Cover Banner: banner set" : "Cover Banner: no banner found");
+        new Notice(ok ? "Cinematic Covers: banner set" : "Cinematic Covers: no banner found");
         this.requestRefresh();
       }
     });
@@ -950,11 +950,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
       callback: async () => {
         const file = this.getCurrentMarkdownFile();
         if (!looksLikeMarkdownFile(file)) {
-          new Notice("Cover Banner: no active note");
+          new Notice("Cinematic Covers: no active note");
           return;
         }
         const cleared = await this.clearInvalidPrimaryField(file);
-        new Notice(cleared ? `Cover Banner: cleared ${this.settings.fieldPrimary}` : "Cover Banner: nothing to clear");
+        new Notice(cleared ? `Cinematic Covers: cleared ${this.settings.fieldPrimary}` : "Cinematic Covers: nothing to clear");
         this.requestRefresh();
       }
     });
@@ -1281,14 +1281,14 @@ module.exports = class CoverBannerPlugin extends Plugin {
       };
 
       actions.appendChild(
-        mkAction("layout-dashboard", "Open Cover Banner dashboard", () => this.openDashboard())
+        mkAction("layout-dashboard", "Open Cinematic Covers dashboard", () => this.openDashboard())
       );
 
       actions.appendChild(
         mkAction("image", "Pick banner from Pexels", () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
-            new Notice("Cover Banner: no active note");
+            new Notice("Cinematic Covers: no active note");
             return;
           }
           new PexelsPickerModal(this.app, this, f).open();
@@ -1299,11 +1299,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
         mkAction("sparkles", "Auto-set banner", async () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
-            new Notice("Cover Banner: no active note");
+            new Notice("Cinematic Covers: no active note");
             return;
           }
           const ok = await this.autoSetForFile(f, { force: true, createEmptyOnFail: true });
-          new Notice(ok ? "Cover Banner: banner set" : "Cover Banner: no banner found");
+          new Notice(ok ? "Cinematic Covers: banner set" : "Cinematic Covers: no banner found");
           this.requestRefresh();
         })
       );
@@ -1312,11 +1312,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
         mkAction("x-circle", "Clear invalid banner field", async () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
-            new Notice("Cover Banner: no active note");
+            new Notice("Cinematic Covers: no active note");
             return;
           }
           const cleared = await this.clearInvalidPrimaryField(f);
-          new Notice(cleared ? `Cover Banner: cleared ${this.settings.fieldPrimary}` : "Cover Banner: nothing to clear");
+          new Notice(cleared ? `Cinematic Covers: cleared ${this.settings.fieldPrimary}` : "Cinematic Covers: nothing to clear");
           this.requestRefresh();
         })
       );
@@ -1325,7 +1325,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
         mkAction("pin", isPinned ? "Unpin banner" : "Pin banner", async () => {
           this.settings.pinBanner = !coerceBoolean(this.settings.pinBanner, false);
           await this.saveSettings();
-          new Notice(`Cover Banner: pinBanner = ${this.settings.pinBanner ? "ON" : "OFF"}`);
+          new Notice(`Cinematic Covers: pinBanner = ${this.settings.pinBanner ? "ON" : "OFF"}`);
           this.refreshAllViewBanners();
           this.refreshDashboard();
         })
@@ -1334,7 +1334,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
       actions.appendChild(
         mkAction("smile-plus", "Pick note emoji/icon", () => {
           const f = this.getCurrentMarkdownFile();
-          if (!looksLikeMarkdownFile(f)) { new Notice("Cover Banner: no active note"); return; }
+          if (!looksLikeMarkdownFile(f)) { new Notice("Cinematic Covers: no active note"); return; }
           new IconPickerModal(this.app, this, f).open();
         })
       );
@@ -1630,7 +1630,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
 
       if (!arrayBuffer) {
         console.error("CoverBanner: download missing arrayBuffer", { imageUrl, status, contentType, keys: r ? Object.keys(r) : null });
-        new Notice(`Cover Banner: failed to download (status ${status ?? "?"})`);
+        new Notice(`Cinematic Covers: failed to download (status ${status ?? "?"})`);
         return null;
       }
 
@@ -1659,7 +1659,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
       return `[[${destPath}]]`;
     } catch (e) {
       console.error("CoverBanner: downloadImageToVault error", e);
-      new Notice("Cover Banner: download error (see console)");
+      new Notice("Cinematic Covers: download error (see console)");
       return null;
     }
   }
@@ -1707,7 +1707,7 @@ class CoverBannerSettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Cover Banner" });
+    containerEl.createEl("h2", { text: "Cinematic Covers" });
     containerEl.createEl("p", { text: "Version: v0.5.2-local" });
     containerEl.createEl("p", { text: "Most controls are available in the right-panel dashboard (ribbon icon), but core settings live here." });
 
@@ -1732,7 +1732,7 @@ class CoverBannerSettingTab extends PluginSettingTab {
         t.setValue(!!this.plugin.settings.pinBanner).onChange(async (v) => {
           this.plugin.settings.pinBanner = !!v;
           await this.plugin.saveSettings();
-          new Notice(`Cover Banner: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
+          new Notice(`Cinematic Covers: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
           this.plugin.refreshAllViewBanners();
           this.plugin.refreshDashboard();
         })
