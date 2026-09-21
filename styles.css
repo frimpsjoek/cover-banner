@@ -65,9 +65,13 @@
   z-index: 1;
 }
 
-/* Hide rendered properties without changing the note's YAML/frontmatter. */
+/* Hide rendered properties without changing the note's YAML/frontmatter.
+   Obsidian may create or replace this block after the view first renders, so
+   the state class belongs on .view-content rather than the block itself. */
+.view-content.cover-banner--hide-properties .metadata-container,
+.view-content.cover-banner--hide-properties .markdown-properties,
 .view-content .cover-banner__properties-hidden {
-  display: none;
+  display: none !important;
 }
 
 /* Pinning is now class-driven to avoid attribute/theme collisions */
@@ -461,8 +465,9 @@
   font-feature-settings: "kern" 1, "liga" 0;
 }
 
-.view-content .cover-banner--hide-title .inline-title {
-  display: none;
+.cover-banner--hide-title .inline-title,
+.view-content.cover-banner--hide-title .inline-title {
+  display: none !important;
 }
 
 .cover-banner--enhanced-markdown .markdown-preview-view {

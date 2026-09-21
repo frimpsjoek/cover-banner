@@ -1203,6 +1203,12 @@ module.exports = class CoverBannerPlugin extends Plugin {
     // insert above properties
     const viewContent = root.querySelector(".view-content") || root;
 
+    // Keep presentation state on the element that owns Obsidian's rendered
+    // title, properties, and note content. Those elements can be created or
+    // replaced after this refresh, so the CSS state must live above them.
+    viewContent.classList.toggle("cover-banner--hide-title", !!this.settings.hideTitle);
+    viewContent.classList.toggle("cover-banner--hide-properties", !!this.settings.hideProperties);
+
     // cleanup old parallax handler for this scroll container (if any)
     try {
       const prev = this._parallaxMap?.get(viewContent);
