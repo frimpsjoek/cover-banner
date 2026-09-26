@@ -69,7 +69,9 @@
    Obsidian may create or replace this block after the view first renders, so
    the state class belongs on .view-content rather than the block itself. */
 .view-content.cover-banner--hide-properties .metadata-container,
+.view-content.cover-banner--hide-properties .metadata-properties,
 .view-content.cover-banner--hide-properties .markdown-properties,
+.view-content.cover-banner--hide-properties [data-type="properties"],
 .view-content .cover-banner__properties-hidden {
   display: none !important;
 }
@@ -466,7 +468,9 @@
 }
 
 .cover-banner--hide-title .inline-title,
-.view-content.cover-banner--hide-title .inline-title {
+.view-content.cover-banner--hide-title .inline-title,
+.cover-banner--hide-title .markdown-preview-view .inline-title,
+.cover-banner--hide-title .markdown-source-view .inline-title {
   display: none !important;
 }
 

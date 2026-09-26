@@ -905,6 +905,10 @@ module.exports = class CoverBannerPlugin extends Plugin {
       this._refreshDebounced();
       this.refreshDashboard();
     }));
+    // Some Obsidian versions replace note-view content during layout changes.
+    // Reapply presentation classes after that replacement so the hide options
+    // remain effective across desktop versions and workspace restores.
+    this.registerEvent(this.app.workspace.on("layout-change", () => this._refreshDebounced()));
     this.registerEvent(this.app.metadataCache.on("changed", () => this._refreshDebounced()));
 
     setTimeout(() => this._refreshDebounced(), 1200);
@@ -1233,8 +1237,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
     const isPinned = coerceBoolean(this.settings.pinBanner, false);
     const showBannerButtons = coerceBoolean(this.settings.showBannerButtons, true);
 
-    const props = viewContent.querySelector(".metadata-container, .markdown-properties");
-    if (props) props.classList.toggle("cover-banner__properties-hidden", !!this.settings.hideProperties);
+    viewContent.querySelectorAll(
+      ".metadata-container, .metadata-properties, .markdown-properties, [data-type=\"properties\"]"
+    ).forEach((props) => {
+      props.classList.toggle("cover-banner__properties-hidden", !!this.settings.hideProperties);
+    });
 
     const banner = document.createElement("div");
     banner.className = "cover-banner";
