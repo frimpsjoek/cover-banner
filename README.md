@@ -13,6 +13,7 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 - Hideable properties and note titles
 - Enhanced styling for Markdown, code, JSON, JSONL, LaTeX, and AI transcripts
 - Content font presets for reading, technical notes, and long-form writing
+- Reading templates for balanced, bookish, focused, and technical notes
 - A dashboard for per-note and global settings
 
 ## Quick start
@@ -109,6 +110,19 @@ Use **Content font** in the dashboard or settings to choose the note’s prose f
 - **IBM Plex Mono** — ideal for technical notes and logs
 
 Code blocks continue to use a monospace font for readability.
+
+## Reading templates
+
+Use **Reading template** in the dashboard or settings to change the note’s
+spacing and reading rhythm without changing the Markdown itself:
+
+- **Balanced** — comfortable everyday note styling
+- **Bookish** — relaxed spacing for long-form reading
+- **Focused** — larger type and generous whitespace
+- **Technical** — tighter spacing for reference notes and code
+
+Templates work in both Reading view and Live Preview. They can be combined
+with any content font preset.
 
 ## Commands
 

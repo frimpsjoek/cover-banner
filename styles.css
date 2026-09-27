@@ -223,6 +223,13 @@
   text-align: right;
 }
 
+.cover-banner-dashboard__hint {
+  margin: -4px 0 12px 118px;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .cover-banner-dashboard input[type="text"],
 .cover-banner-dashboard input[type="password"],
 .cover-banner-dashboard select {
@@ -461,6 +468,14 @@
   font-feature-settings: "kern" 1, "liga" 1;
 }
 
+.cover-banner--content-font .markdown-preview-view {
+  font-size: var(--cb-text-size, 1em);
+}
+
+.cover-banner--content-font .markdown-source-view .cm-content {
+  font-size: var(--cb-text-size, 1em);
+}
+
 .cover-banner--content-font .markdown-preview-view :is(pre, code),
 .cover-banner--content-font .markdown-source-view :is(.cm-inline-code, .HyperMD-codeblock) {
   font-family: var(--font-monospace, "SFMono-Regular", Consolas, monospace);
@@ -480,6 +495,13 @@
   --cb-surface-strong: color-mix(in srgb, var(--background-secondary) 88%, transparent);
   --cb-line: color-mix(in srgb, var(--text-normal) 14%, transparent);
   --cb-accent-soft: color-mix(in srgb, var(--text-accent) 12%, transparent);
+  line-height: 1.72;
+}
+
+/* The same rhythm is applied to Live Preview so a note does not change
+   character when switching between editing and reading. */
+.cover-banner--enhanced-markdown .markdown-source-view .cm-content {
+  --cb-content-gap: clamp(0.75rem, 1.8vw, 1.25rem);
   line-height: 1.72;
 }
 
@@ -660,4 +682,64 @@
 
 .cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-tool {
   border-left-color: var(--color-red);
+}
+
+/* Reading templates ------------------------------------------------------ */
+
+.cover-banner-template-balanced .markdown-preview-view,
+.cover-banner-template-balanced .markdown-source-view .cm-content {
+  --cb-text-size: 1em;
+}
+
+.cover-banner-template-bookish .markdown-preview-view,
+.cover-banner-template-bookish .markdown-source-view .cm-content {
+  --cb-text-size: 1.04em;
+  --cb-content-gap: clamp(1rem, 2.2vw, 1.5rem);
+  line-height: 1.82;
+}
+
+.cover-banner-template-bookish .markdown-preview-view .markdown-preview-sizer > p,
+.cover-banner-template-bookish .markdown-preview-view .markdown-preview-sizer > ul,
+.cover-banner-template-bookish .markdown-preview-view .markdown-preview-sizer > ol {
+  margin-block: calc(var(--cb-content-gap) * 1.05);
+}
+
+.cover-banner-template-focused .markdown-preview-view,
+.cover-banner-template-focused .markdown-source-view .cm-content {
+  --cb-text-size: 1.07em;
+  --cb-content-gap: clamp(1rem, 2.4vw, 1.6rem);
+  line-height: 1.88;
+}
+
+.cover-banner-template-focused .markdown-preview-view .markdown-preview-sizer > p,
+.cover-banner-template-focused .markdown-preview-view .markdown-preview-sizer > ul,
+.cover-banner-template-focused .markdown-preview-view .markdown-preview-sizer > ol {
+  margin-block: calc(var(--cb-content-gap) * 1.15);
+}
+
+.cover-banner-template-focused .markdown-preview-view .markdown-preview-sizer > :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: calc(var(--cb-content-gap) * 1.9);
+}
+
+.cover-banner-template-technical .markdown-preview-view,
+.cover-banner-template-technical .markdown-source-view .cm-content {
+  --cb-text-size: 0.97em;
+  --cb-content-gap: clamp(0.6rem, 1.4vw, 0.95rem);
+  line-height: 1.58;
+}
+
+.cover-banner-template-technical .markdown-preview-view .markdown-preview-sizer > :is(h1, h2, h3, h4, h5, h6) {
+  letter-spacing: -0.01em;
+  margin-top: calc(var(--cb-content-gap) * 1.35);
+  margin-bottom: calc(var(--cb-content-gap) * 0.45);
+}
+
+.cover-banner-template-technical .markdown-preview-view .markdown-preview-sizer > p,
+.cover-banner-template-technical .markdown-preview-view .markdown-preview-sizer > ul,
+.cover-banner-template-technical .markdown-preview-view .markdown-preview-sizer > ol {
+  margin-block: var(--cb-content-gap);
+}
+
+.cover-banner-template-technical .markdown-preview-view :is(pre, table, .math-block) {
+  border-radius: 8px;
 }

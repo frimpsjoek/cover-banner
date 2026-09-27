@@ -60,6 +60,32 @@ const CONTENT_FONT_PRESETS = {
   }
 };
 
+// Reading templates tune the rhythm of a note without changing its content.
+// Fonts remain a separate choice so users can mix a layout with any installed
+// font fallback they prefer.
+const READING_TEMPLATE_PRESETS = {
+  balanced: {
+    label: "Balanced",
+    description: "Clean, comfortable spacing for everyday notes",
+    className: "cover-banner-template-balanced"
+  },
+  bookish: {
+    label: "Bookish",
+    description: "Relaxed paragraphs and softer section breaks for long reading",
+    className: "cover-banner-template-bookish"
+  },
+  focused: {
+    label: "Focused",
+    description: "Larger type and generous spacing for distraction-free reading",
+    className: "cover-banner-template-focused"
+  },
+  technical: {
+    label: "Technical",
+    description: "Tighter rhythm and stronger code surfaces for reference notes",
+    className: "cover-banner-template-technical"
+  }
+};
+
 function getContentFontStack(value) {
   return CONTENT_FONT_PRESETS[value]?.stack || CONTENT_FONT_PRESETS.inter.stack;
 }
@@ -92,6 +118,7 @@ const DEFAULT_SETTINGS = {
   hideProperties: false,
   hideTitle: false,
   contentFont: "inter",
+  readingTemplate: "balanced",
   enhancedMarkdown: true,
   formatAiChats: true,
 
@@ -765,6 +792,29 @@ class CoverBannerDashboardView extends ItemView {
       this.plugin.requestRefresh();
     });
 
+    const templateRow = el.createDiv({ cls: "cover-banner-dashboard__row" });
+    templateRow.createDiv({ text: "Reading template", cls: "cover-banner-dashboard__label" });
+    const templateSelect = templateRow.createEl("select");
+    for (const [value, preset] of Object.entries(READING_TEMPLATE_PRESETS)) {
+      const option = templateRow.ownerDocument.createElement("option");
+      option.value = value;
+      option.text = preset.label;
+      option.selected = (this.plugin.settings.readingTemplate || "balanced") === value;
+      templateSelect.appendChild(option);
+    }
+    templateSelect.addEventListener("change", async () => {
+      this.plugin.settings.readingTemplate = templateSelect.value;
+      await this.plugin.saveSettings();
+      this.plugin.requestRefresh();
+    });
+    const templateHelp = el.createDiv({ cls: "cover-banner-dashboard__hint" });
+    const updateTemplateHelp = () => {
+      const preset = READING_TEMPLATE_PRESETS[templateSelect.value] || READING_TEMPLATE_PRESETS.balanced;
+      templateHelp.setText(preset.description);
+    };
+    templateSelect.addEventListener("change", updateTemplateHelp);
+    updateTemplateHelp();
+
     const fitRow = el.createDiv({ cls: "cover-banner-dashboard__row" });
     fitRow.createDiv({ text: "Fit", cls: "cover-banner-dashboard__label" });
     const fit = fitRow.createEl("select");
@@ -836,6 +886,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
 
     if (!CONTENT_FONT_PRESETS[this.settings.contentFont]) {
       this.settings.contentFont = DEFAULT_SETTINGS.contentFont;
+      didMigrate = true;
+    }
+
+    if (!READING_TEMPLATE_PRESETS[this.settings.readingTemplate]) {
+      this.settings.readingTemplate = DEFAULT_SETTINGS.readingTemplate;
       didMigrate = true;
     }
 
@@ -1194,6 +1249,12 @@ module.exports = class CoverBannerPlugin extends Plugin {
 
     root.classList.toggle("cover-banner--hide-title", !!this.settings.hideTitle);
     root.classList.toggle("cover-banner--enhanced-markdown", !!this.settings.enhancedMarkdown);
+    root.classList.toggle("cover-banner--content-font", true);
+    for (const preset of Object.values(READING_TEMPLATE_PRESETS)) {
+      root.classList.toggle(preset.className, false);
+    }
+    const template = READING_TEMPLATE_PRESETS[this.settings.readingTemplate] || READING_TEMPLATE_PRESETS.balanced;
+    root.classList.add(template.className);
     root.style.setProperty("--cover-banner-content-font", getContentFontStack(this.settings.contentFont));
     if (this.settings.enhancedMarkdown && this.settings.formatAiChats) {
       this.decorateAiChatBlocks(root);
@@ -1843,6 +1904,23 @@ class CoverBannerSettingTab extends PluginSettingTab {
         d.setValue(this.plugin.settings.contentFont || DEFAULT_SETTINGS.contentFont);
         d.onChange(async (value) => {
           this.plugin.settings.contentFont = CONTENT_FONT_PRESETS[value] ? value : DEFAULT_SETTINGS.contentFont;
+          await this.plugin.saveSettings();
+          this.plugin.requestRefresh();
+        });
+      });
+
+    new Setting(containerEl)
+      .setName("Reading template")
+      .setDesc("Choose a reusable spacing and hierarchy style for notes. This changes presentation only; your Markdown stays untouched.")
+      .addDropdown((d) => {
+        for (const [value, preset] of Object.entries(READING_TEMPLATE_PRESETS)) {
+          d.addOption(value, preset.label);
+        }
+        d.setValue(this.plugin.settings.readingTemplate || DEFAULT_SETTINGS.readingTemplate);
+        d.onChange(async (value) => {
+          this.plugin.settings.readingTemplate = READING_TEMPLATE_PRESETS[value]
+            ? value
+            : DEFAULT_SETTINGS.readingTemplate;
           await this.plugin.saveSettings();
           this.plugin.requestRefresh();
         });
