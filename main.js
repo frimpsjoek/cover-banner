@@ -1,5 +1,5 @@
 /*
-Obsidian Banners (Obsidian plugin)
+Cinematic Covers (Obsidian plugin)
 
 v0.5.2-local
 - One ribbon icon opens a RIGHT-PANEL dashboard (like Notion controls)
@@ -42,8 +42,8 @@ const CONTENT_FONT_PRESETS = {
     stack: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   },
   lato: { label: "Lato — everyday reading", stack: '"Lato", sans-serif' },
-  openSans: { label: "Open Sans — clear and open", stack: '"Open Sans", sans-serif' },
-  notoSans: { label: "Noto Sans — clean reading", stack: '"Noto Sans", sans-serif' },
+  openSans: { label: "Open Sans — clear and open", stack: '"Open Sans", "IBM Plex Sans", sans-serif' },
+  notoSans: { label: "Noto Sans — clean reading", stack: '"Noto Sans", "IBM Plex Sans", sans-serif' },
   literata: { label: "Literata — book-style reading", stack: '"Literata", Georgia, serif' },
   theme: {
     label: "Theme default",
@@ -51,7 +51,9 @@ const CONTENT_FONT_PRESETS = {
   },
   atkinson: {
     label: "Atkinson Hyperlegible",
-    stack: '"Atkinson Hyperlegible", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
+    // Atkinson has almost no Greek and no arrows: bundled IBM Plex Sans supplies them.
+    // The newer Next family is used when installed, otherwise the bundled face.
+    stack: '"Atkinson Hyperlegible Next", "Atkinson Hyperlegible", "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   },
   sourceSerif: {
     label: "Source Serif 4",
@@ -63,7 +65,35 @@ const CONTENT_FONT_PRESETS = {
   },
   plexMono: {
     label: "IBM Plex Mono",
-    stack: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace'
+    stack: '"IBM Plex Mono", "JetBrains Mono", "IBM Plex Sans", "SFMono-Regular", Menlo, Consolas, monospace'
+  }
+};
+
+// Code faces are not bundled, so the picker flags any that are missing on this device.
+const CODE_FONT_PRESETS = {
+  theme: {
+    label: "Theme default",
+    stack: "var(--font-monospace)"
+  },
+  jetbrains: {
+    label: "JetBrains Mono",
+    family: "JetBrains Mono",
+    stack: '"JetBrains Mono", "SFMono-Regular", Menlo, monospace'
+  },
+  fira: {
+    label: "Fira Code",
+    family: "Fira Code",
+    stack: '"Fira Code", "JetBrains Mono", "SFMono-Regular", Menlo, monospace'
+  },
+  atkinsonMono: {
+    label: "Atkinson Hyperlegible Mono",
+    family: "Atkinson Hyperlegible Mono",
+    stack: '"Atkinson Hyperlegible Mono", "JetBrains Mono", "SFMono-Regular", Menlo, monospace'
+  },
+  intel: {
+    label: "Intel One Mono",
+    family: "Intel One Mono",
+    stack: '"Intel One Mono", "JetBrains Mono", "SFMono-Regular", Menlo, monospace'
   }
 };
 
@@ -128,6 +158,27 @@ function getContentFontStack(value) {
   return CONTENT_FONT_PRESETS[value]?.stack || CONTENT_FONT_PRESETS.inter.stack;
 }
 
+function getCodeFontStack(value) {
+  return CODE_FONT_PRESETS[value]?.stack || CODE_FONT_PRESETS.theme.stack;
+}
+
+// CSS falls back silently when a family is absent, which makes a picker look broken.
+// Compare text widths against two generics: a real font changes at least one.
+function isFontInstalled(family) {
+  const ctx = document.createElement("canvas").getContext("2d");
+  const sample = "mmmmmmmmmmlllllliiiii0123456789";
+  return ["monospace", "serif"].some((generic) => {
+    ctx.font = `72px ${generic}`;
+    const base = ctx.measureText(sample).width;
+    ctx.font = `72px "${family}", ${generic}`;
+    return ctx.measureText(sample).width !== base;
+  });
+}
+
+function codeFontLabel(preset) {
+  return preset.family && !isFontInstalled(preset.family) ? `${preset.label} (not installed)` : preset.label;
+}
+
 const DEFAULT_SETTINGS = {
   // banner fields
   // Preferred primary field is `cover` (matches your vault convention).
@@ -158,6 +209,7 @@ const DEFAULT_SETTINGS = {
   hideProperties: false,
   hideTitle: false,
   contentFont: "inter",
+  codeFont: "theme",
   contentFontSize: 16,
   readingTemplate: "balanced",
   enhancedMarkdown: true,
@@ -169,8 +221,8 @@ const DEFAULT_SETTINGS = {
   defaultFavicon: "📝",
 
   // autoset
-  autoSetEnabled: true,
-  autoSetOnOpen: true,
+  autoSetEnabled: false,
+  autoSetOnOpen: false,
   autoSetUrlFieldCandidates: ["URL", "Url", "url", "source", "Source", "link", "href"],
   bannerFolder: ".attachments/banners",
   maxAutoSetPerSession: 50,
@@ -367,7 +419,7 @@ class PexelsPickerModal extends Modal {
 
       const key = (this.plugin.settings.pexelsApiKey || "").trim();
       if (!key) {
-        new Notice("Obsidian Banners: set Pexels API key in plugin settings");
+        new Notice("Cinematic Covers: set Pexels API key in plugin settings");
         return;
       }
 
@@ -407,18 +459,18 @@ class PexelsPickerModal extends Modal {
           const localLink = await this.plugin.downloadImageToVault(full, `pexels-${this.file.basename}`);
           if (localLink) {
             await this.plugin.setFrontmatterPrimary(this.file, localLink);
-            new Notice("Obsidian Banners: banner set from Pexels");
+            new Notice("Cinematic Covers: banner set from Pexels");
             this.plugin.requestRefresh();
             this.close();
           } else {
             // Fallback to remote URL if binary download fails in the local environment.
             try {
               await this.plugin.setFrontmatterPrimary(this.file, full);
-              new Notice("Obsidian Banners: banner set from Pexels URL");
+              new Notice("Cinematic Covers: banner set from Pexels URL");
               this.plugin.requestRefresh();
               this.close();
             } catch {
-              new Notice("Obsidian Banners: failed to set image");
+              new Notice("Cinematic Covers: failed to set image");
               item.removeClass("is-loading");
             }
           }
@@ -615,7 +667,7 @@ class CoverBannerDashboardView extends ItemView {
   }
 
   getDisplayText() {
-    return "Obsidian Banners";
+    return "Cinematic Covers";
   }
 
   getIcon() {
@@ -640,7 +692,7 @@ class CoverBannerDashboardView extends ItemView {
     el.setAttribute("aria-label", "Cover and reading settings");
 
     const header = el.createDiv({ cls: "cover-banner-dashboard__header" });
-    header.createEl("h3", { text: "Obsidian Banners" });
+    header.createEl("h3", { text: "Cinematic Covers" });
     header.createDiv({ text: "Covers, fonts, and note styling.", cls: "cover-banner-dashboard__sub" });
 
     const file = this.plugin.getCurrentMarkdownFile();
@@ -659,11 +711,11 @@ class CoverBannerDashboardView extends ItemView {
     mkBtn("wand-sparkles", "Auto-set banner (URL/Book)", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Obsidian Banners: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       const ok = await this.plugin.autoSetForFile(f, { force: true, createEmptyOnFail: true });
-      new Notice(ok ? "Obsidian Banners: banner set" : "Obsidian Banners: no banner found");
+      new Notice(ok ? "Cinematic Covers: banner set" : "Cinematic Covers: no banner found");
       this.plugin.requestRefresh();
       this.render();
     });
@@ -671,7 +723,7 @@ class CoverBannerDashboardView extends ItemView {
     mkBtn("image-plus", "Pick a banner…", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Obsidian Banners: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       new PexelsPickerModal(this.app, this.plugin, f).open();
@@ -680,7 +732,7 @@ class CoverBannerDashboardView extends ItemView {
     mkBtn("eraser", "Clear invalid banner field", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Obsidian Banners: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       const cleared = await this.plugin.clearInvalidPrimaryField(f);
@@ -700,7 +752,7 @@ class CoverBannerDashboardView extends ItemView {
     iconSave.addEventListener("click", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Obsidian Banners: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       await this.plugin.setFaviconField(f, iconInput.value.trim());
@@ -709,7 +761,7 @@ class CoverBannerDashboardView extends ItemView {
     iconClear.addEventListener("click", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Obsidian Banners: no active note");
+        new Notice("Cinematic Covers: no active note");
         return;
       }
       await this.plugin.setFaviconField(f, "", { allowEmpty: true });
@@ -769,7 +821,7 @@ class CoverBannerDashboardView extends ItemView {
     pinToggle.addEventListener("change", async () => {
       this.plugin.settings.pinBanner = !!pinToggle.checked;
       await this.plugin.saveSettings();
-      new Notice(`Obsidian Banners: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
+      new Notice(`Cinematic Covers: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
       this.plugin.refreshAllViewBanners();
       this.plugin.refreshDashboard();
     });
@@ -860,6 +912,22 @@ class CoverBannerDashboardView extends ItemView {
       await this.plugin.saveSettings();
     });
 
+    const codeFontRow = el.createDiv({ cls: "cover-banner-dashboard__row" });
+    codeFontRow.createDiv({ text: "Code font", cls: "cover-banner-dashboard__label" });
+    const codeFontSelect = codeFontRow.createEl("select");
+    for (const [value, preset] of Object.entries(CODE_FONT_PRESETS)) {
+      const option = codeFontRow.ownerDocument.createElement("option");
+      option.value = value;
+      option.text = codeFontLabel(preset);
+      option.selected = (this.plugin.settings.codeFont || "theme") === value;
+      codeFontSelect.appendChild(option);
+    }
+    codeFontSelect.addEventListener("change", async () => {
+      this.plugin.settings.codeFont = codeFontSelect.value;
+      await this.plugin.saveSettings();
+      this.plugin.requestRefresh();
+    });
+
     const templateRow = el.createDiv({ cls: "cover-banner-dashboard__row" });
     templateRow.createDiv({ text: "Reading template", cls: "cover-banner-dashboard__label" });
     const templateSelect = templateRow.createEl("select");
@@ -920,7 +988,7 @@ class CoverBannerDashboardView extends ItemView {
     keyInput.addEventListener("change", async () => {
       this.plugin.settings.pexelsApiKey = keyInput.value;
       await this.plugin.saveSettings();
-      new Notice("Obsidian Banners: saved Pexels key");
+      new Notice("Cinematic Covers: saved Pexels key");
     });
     el.scrollTop = scrollTop;
   }
@@ -958,6 +1026,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
         this.settings[key] = normalized;
         didMigrate = true;
       }
+    }
+
+    if (!CODE_FONT_PRESETS[this.settings.codeFont]) {
+      this.settings.codeFont = DEFAULT_SETTINGS.codeFont;
+      didMigrate = true;
     }
 
     if (!CONTENT_FONT_PRESETS[this.settings.contentFont]) {
@@ -1009,7 +1082,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     if (didMigrate) {
       // persist migration so data.json reflects the active settings
       await this.saveData(this.settings);
-      new Notice("Obsidian Banners: migrated settings (primary field = cover)");
+      new Notice("Cinematic Covers: migrated settings (primary field = cover)");
       console.log("CoverBanner: migrated settings", this.settings);
     }
 
@@ -1029,7 +1102,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     this.registerView(VIEW_TYPE, (leaf) => new CoverBannerDashboardView(leaf, this));
 
     // SINGLE ribbon icon: open dashboard
-    this.addRibbonIcon(TOOL_ICON, "Obsidian Banners dashboard", async () => {
+    this.addRibbonIcon(TOOL_ICON, "Cinematic Covers dashboard", async () => {
       await this.openDashboard();
     });
 
@@ -1066,7 +1139,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
       callback: async () => {
         const file = this.getCurrentMarkdownFile();
         if (!looksLikeMarkdownFile(file)) {
-          new Notice("Obsidian Banners: no active note");
+          new Notice("Cinematic Covers: no active note");
           return;
         }
         new PexelsPickerModal(this.app, this, file).open();
@@ -1079,11 +1152,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
       callback: async () => {
         const file = this.getCurrentMarkdownFile();
         if (!looksLikeMarkdownFile(file)) {
-          new Notice("Obsidian Banners: no active note");
+          new Notice("Cinematic Covers: no active note");
           return;
         }
         const ok = await this.autoSetForFile(file, { force: true, createEmptyOnFail: true });
-        new Notice(ok ? "Obsidian Banners: banner set" : "Obsidian Banners: no banner found");
+        new Notice(ok ? "Cinematic Covers: banner set" : "Cinematic Covers: no banner found");
         this.requestRefresh();
       }
     });
@@ -1094,11 +1167,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
       callback: async () => {
         const file = this.getCurrentMarkdownFile();
         if (!looksLikeMarkdownFile(file)) {
-          new Notice("Obsidian Banners: no active note");
+          new Notice("Cinematic Covers: no active note");
           return;
         }
         const cleared = await this.clearInvalidPrimaryField(file);
-        new Notice(cleared ? `Obsidian Banners: cleared ${this.settings.fieldPrimary}` : "Obsidian Banners: nothing to clear");
+        new Notice(cleared ? `Cinematic Covers: cleared ${this.settings.fieldPrimary}` : "Cinematic Covers: nothing to clear");
         this.requestRefresh();
       }
     });
@@ -1139,8 +1212,8 @@ module.exports = class CoverBannerPlugin extends Plugin {
       };
       if (!newer(version, installed.version)) {
         if (manual) new Notice(installed.version !== this.manifest.version
-          ? "Obsidian Banners: update installed. Restart Obsidian to finish."
-          : "Obsidian Banners is up to date.");
+          ? "Cinematic Covers: update installed. Restart Obsidian to finish."
+          : "Cinematic Covers is up to date.");
         return;
       }
       const names = ["main.js", "styles.css", "manifest.json"];
@@ -1175,10 +1248,10 @@ module.exports = class CoverBannerPlugin extends Plugin {
         if (failures.length) throw new Error(`Restore ${failures.join(", ")} from the .update-backup files in the plugin folder.`);
         throw error;
       }
-      new Notice(`Obsidian Banners ${version} installed. Restart Obsidian to finish updating.`, 15000);
+      new Notice(`Cinematic Covers ${version} installed. Restart Obsidian to finish updating.`, 15000);
     } catch (error) {
-      console.error("Obsidian Banners update failed", error);
-      if (manual) new Notice(`Obsidian Banners: update failed. ${error.message}`, 10000);
+      console.error("Cinematic Covers update failed", error);
+      if (manual) new Notice(`Cinematic Covers: update failed. ${error.message}`, 10000);
     } finally {
       this._updating = false;
     }
@@ -1416,6 +1489,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     const template = READING_TEMPLATE_PRESETS[this.settings.readingTemplate] || READING_TEMPLATE_PRESETS.balanced;
     root.classList.add(template.className);
     root.style.setProperty("--cover-banner-content-font", getContentFontStack(this.settings.contentFont));
+    root.style.setProperty("--cover-banner-code-font", getCodeFontStack(this.settings.codeFont));
     root.style.setProperty("--cover-banner-font-size", `${normalizeFontSize(this.settings.contentFontSize)}px`);
     if (this.settings.enhancedMarkdown && this.settings.formatAiChats) {
       this.decorateAiChatBlocks(root);
@@ -1527,14 +1601,14 @@ module.exports = class CoverBannerPlugin extends Plugin {
       };
 
       actions.appendChild(
-        mkAction(TOOL_ICON, "Open Obsidian Banners dashboard", () => this.openDashboard())
+        mkAction(TOOL_ICON, "Open Cinematic Covers dashboard", () => this.openDashboard())
       );
 
       actions.appendChild(
         mkAction("image", "Pick banner from Pexels", () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
-            new Notice("Obsidian Banners: no active note");
+            new Notice("Cinematic Covers: no active note");
             return;
           }
           new PexelsPickerModal(this.app, this, f).open();
@@ -1545,11 +1619,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
         mkAction("sparkles", "Auto-set banner", async () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
-            new Notice("Obsidian Banners: no active note");
+            new Notice("Cinematic Covers: no active note");
             return;
           }
           const ok = await this.autoSetForFile(f, { force: true, createEmptyOnFail: true });
-          new Notice(ok ? "Obsidian Banners: banner set" : "Obsidian Banners: no banner found");
+          new Notice(ok ? "Cinematic Covers: banner set" : "Cinematic Covers: no banner found");
           this.requestRefresh();
         })
       );
@@ -1558,11 +1632,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
         mkAction("x-circle", "Clear invalid banner field", async () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
-            new Notice("Obsidian Banners: no active note");
+            new Notice("Cinematic Covers: no active note");
             return;
           }
           const cleared = await this.clearInvalidPrimaryField(f);
-          new Notice(cleared ? `Obsidian Banners: cleared ${this.settings.fieldPrimary}` : "Obsidian Banners: nothing to clear");
+          new Notice(cleared ? `Cinematic Covers: cleared ${this.settings.fieldPrimary}` : "Cinematic Covers: nothing to clear");
           this.requestRefresh();
         })
       );
@@ -1571,7 +1645,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
         mkAction("pin", isPinned ? "Unpin banner" : "Pin banner", async () => {
           this.settings.pinBanner = !coerceBoolean(this.settings.pinBanner, false);
           await this.saveSettings();
-          new Notice(`Obsidian Banners: pinBanner = ${this.settings.pinBanner ? "ON" : "OFF"}`);
+          new Notice(`Cinematic Covers: pinBanner = ${this.settings.pinBanner ? "ON" : "OFF"}`);
           this.refreshAllViewBanners();
           this.refreshDashboard();
         })
@@ -1580,7 +1654,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
       actions.appendChild(
         mkAction("smile-plus", "Pick note emoji/icon", () => {
           const f = this.getCurrentMarkdownFile();
-          if (!looksLikeMarkdownFile(f)) { new Notice("Obsidian Banners: no active note"); return; }
+          if (!looksLikeMarkdownFile(f)) { new Notice("Cinematic Covers: no active note"); return; }
           new IconPickerModal(this.app, this, f).open();
         })
       );
@@ -1899,7 +1973,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
 
       if (!arrayBuffer) {
         console.error("CoverBanner: download missing arrayBuffer", { imageUrl, status, contentType, keys: r ? Object.keys(r) : null });
-        new Notice(`Obsidian Banners: failed to download (status ${status ?? "?"})`);
+        new Notice(`Cinematic Covers: failed to download (status ${status ?? "?"})`);
         return null;
       }
 
@@ -1929,7 +2003,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
       return `[[${destPath}]]`;
     } catch (e) {
       console.error("CoverBanner: downloadImageToVault error", e);
-      new Notice("Obsidian Banners: download error (see console)");
+      new Notice("Cinematic Covers: download error (see console)");
       return null;
     }
   }
@@ -1977,8 +2051,17 @@ class CoverBannerSettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Obsidian Banners" });
+    containerEl.createEl("h2", { text: "Cinematic Covers" });
     containerEl.createEl("p", { text: `Version: ${this.plugin.manifest.version}` });
+    new Setting(containerEl)
+      .setName("Auto-set banner on open")
+      .setDesc("When you open a note with no banner, look for one and write it to the note. This requests the note's URL, or sends the note's title to Google Books.")
+      .addToggle((t) => t.setValue(this.plugin.settings.autoSetEnabled && this.plugin.settings.autoSetOnOpen).onChange(async (value) => {
+        this.plugin.settings.autoSetEnabled = value;
+        this.plugin.settings.autoSetOnOpen = value;
+        await this.plugin.saveSettings();
+      }));
+
     new Setting(containerEl)
       .setName("Automatic updates")
       .setDesc("Check GitHub on startup and every six hours. Download stable releases automatically; restart Obsidian to apply. Settings are preserved.")
@@ -2016,7 +2099,7 @@ class CoverBannerSettingTab extends PluginSettingTab {
         t.setValue(!!this.plugin.settings.pinBanner).onChange(async (v) => {
           this.plugin.settings.pinBanner = !!v;
           await this.plugin.saveSettings();
-          new Notice(`Obsidian Banners: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
+          new Notice(`Cinematic Covers: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
           this.plugin.refreshAllViewBanners();
           this.plugin.refreshDashboard();
         })
@@ -2130,6 +2213,21 @@ class CoverBannerSettingTab extends PluginSettingTab {
           this.plugin.requestRefresh();
           await this.plugin.saveSettings();
         }));
+
+    new Setting(containerEl)
+      .setName("Code font")
+      .setDesc("Font for code blocks and inline code. These fonts are not bundled: one marked (not installed) shows the next available font. Ligatures stay off so code shows the characters as typed.")
+      .addDropdown((d) => {
+        for (const [value, preset] of Object.entries(CODE_FONT_PRESETS)) {
+          d.addOption(value, codeFontLabel(preset));
+        }
+        d.setValue(this.plugin.settings.codeFont || DEFAULT_SETTINGS.codeFont);
+        d.onChange(async (value) => {
+          this.plugin.settings.codeFont = CODE_FONT_PRESETS[value] ? value : DEFAULT_SETTINGS.codeFont;
+          await this.plugin.saveSettings();
+          this.plugin.requestRefresh();
+        });
+      });
 
     new Setting(containerEl)
       .setName("Reading template")

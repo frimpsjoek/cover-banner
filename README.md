@@ -1,4 +1,4 @@
-# Obsidian Banners
+# Cinematic Covers
 
 *Covers, fonts, and note styling.*
 
@@ -21,9 +21,9 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 ## Quick start
 
 1. Open **Settings → Community plugins → Browse**.
-2. Search for **Obsidian Banners**.
+2. Search for **Cinematic Covers**.
 3. Install and enable it.
-4. Open the command palette and run **Obsidian Banners: Open dashboard**.
+4. Open the command palette and run **Cinematic Covers: Open dashboard**.
 5. Choose a banner, adjust the appearance, and save.
 
 The plugin works in both **Reading view** and **Live Preview**.
@@ -50,6 +50,8 @@ cover: "https://example.com/image.jpg"
 The primary field is `cover`. The fallback fields `coverFilename` and `banner` are also supported.
 
 ## Automatic banners
+
+Auto-set runs when you use the command or button. To also run it when you open a note, turn on **Auto-set banner on open** in settings. It is off by default because it requests the note's URL or sends the note's title to Google Books, and writes the result to the note.
 
 When a note has no banner, **Auto-set banner (URL/Book)** tries to:
 
@@ -80,7 +82,7 @@ Supported values include emoji, Iconify icons, favicon or image URLs, and local 
 
 ## Appearance controls
 
-Open the Obsidian Banners dashboard or plugin settings to control:
+Open the Cinematic Covers dashboard or plugin settings to control:
 
 | Option | What it changes |
 | --- | --- |
@@ -123,7 +125,9 @@ Use **Content font** in the dashboard or settings to choose the note’s prose f
 - **Source Serif 4** — comfortable for long-form reading
 - **IBM Plex Mono** — ideal for technical notes and logs
 
-Code blocks continue to use a monospace font for readability.
+Use **Code font** to choose the face for code blocks and inline code. Code fonts are not bundled: one marked *(not installed)* shows the next available font.
+
+Atkinson Hyperlegible has almost no Greek and no arrows, so IBM Plex Sans supplies those characters.
 
 ## Reading templates
 
@@ -140,12 +144,12 @@ with any content font preset.
 
 ## Commands
 
-- **Obsidian Banners: Open dashboard**
-- **Obsidian Banners: Auto-set banner (URL/Book)**
-- **Obsidian Banners: Pick banner from Pexels…**
-- **Obsidian Banners: Clear invalid banner field**
+- **Cinematic Covers: Open dashboard**
+- **Cinematic Covers: Auto-set banner (URL/Book)**
+- **Cinematic Covers: Pick banner from Pexels…**
+- **Cinematic Covers: Clear invalid banner field**
 
-You can also open the dashboard from the Obsidian Banners ribbon icon.
+You can also open the dashboard from the Cinematic Covers ribbon icon.
 
 ## Settings and privacy
 
@@ -161,7 +165,7 @@ Unchanged banners are reused across note refreshes, and images decode asynchrono
 
 ## Automatic updates
 
-Version 0.5.8 includes automatic updates, enabled by default. It checks the public `frimpsjoek/cover-banner` GitHub repository at startup and every six hours, downloads newer stable releases, and asks you to restart Obsidian to apply them. No account or API key is needed. Disable this under **Settings → Obsidian Banners → Automatic updates** if you prefer manual updates. Use **Check now** there or the **Check for plugin updates** command for an immediate check.
+Version 0.5.8 includes automatic updates, enabled by default. It checks the public `frimpsjoek/cover-banner` GitHub repository at startup and every six hours, downloads newer stable releases, and asks you to restart Obsidian to apply them. No account or API key is needed. Disable this under **Settings → Cinematic Covers → Automatic updates** if you prefer manual updates. Use **Check now** there or the **Check for plugin updates** command for an immediate check.
 
 Updates preserve `data.json`. The updater validates release identity and Obsidian compatibility, downloads all three required files before installation, and creates `.update-backup` copies. If a write fails, it attempts to restore the previous files. Network errors during background checks are logged without interrupting your work. Each device checks independently while Obsidian is running.
 
@@ -174,7 +178,7 @@ Install 0.5.8 once using the steps below to get the updater. Future releases mus
 3. Enable the plugin again. Confirm version **0.6.3** in Community plugins.
 4. Repeat in each device's vault, or sync the updated plugin files and reload the plugin there.
 
-The plugin folder stays named `cover-banner` even though its display name is Obsidian Banners.
+The plugin folder stays named `cover-banner` even though its display name is Cinematic Covers.
 
 ## Device support
 
@@ -200,4 +204,4 @@ When copying or syncing this plugin to another device, include both `main.js` an
 
 ## License
 
-Obsidian Banners is released under the [MIT License](./LICENSE).
+Cinematic Covers is released under the [MIT License](./LICENSE).

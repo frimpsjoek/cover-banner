@@ -502,8 +502,8 @@
 
 .cover-banner--content-font .markdown-preview-view :is(pre, code),
 .cover-banner--content-font .markdown-source-view :is(.cm-inline-code, .HyperMD-codeblock) {
-  font-family: var(--font-monospace, "SFMono-Regular", Consolas, monospace);
-  font-feature-settings: "kern" 1, "liga" 0;
+  font-family: var(--cover-banner-code-font, var(--font-monospace, "SFMono-Regular", Consolas, monospace));
+  font-feature-settings: "kern" 1, "liga" 0, "calt" 0;
 }
 
 .cover-banner--hide-title .inline-title,
@@ -777,7 +777,7 @@
   --font-text-override: var(--cover-banner-content-font);
 }
 .cover-banner--content-font .markdown-rendered :is(p, li, blockquote, table, h1, h2, h3, h4, h5, h6),
-.cover-banner--content-font .markdown-source-view .cm-line {
+.cover-banner--content-font .markdown-source-view .cm-line:not(.HyperMD-codeblock) {
   font-family: var(--cover-banner-content-font) !important;
 }
 .cover-banner-dashboard__row > * { min-width: 0; }
