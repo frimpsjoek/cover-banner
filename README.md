@@ -1,4 +1,6 @@
-# Cinematic Covers
+# Obsidian Banners
+
+*Covers, fonts, and note styling.*
 
 Give Obsidian notes a calm, cinematic reading experience with Notion-style cover banners, subtle motion, note icons, and refined Markdown typography.
 
@@ -19,9 +21,9 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 ## Quick start
 
 1. Open **Settings → Community plugins → Browse**.
-2. Search for **Cinematic Covers**.
+2. Search for **Obsidian Banners**.
 3. Install and enable it.
-4. Open the command palette and run **Cinematic Covers: Open dashboard**.
+4. Open the command palette and run **Obsidian Banners: Open dashboard**.
 5. Choose a banner, adjust the appearance, and save.
 
 The plugin works in both **Reading view** and **Live Preview**.
@@ -54,9 +56,15 @@ When a note has no banner, **Auto-set banner (URL/Book)** tries to:
 1. Find a page URL in fields such as `URL`, `url`, `source`, `link`, or `href`.
 2. Download the page’s Open Graph or Twitter image.
 3. Fall back to a Google Books cover based on the note title.
-4. Use the default cinematic nature image if no source resolves.
+4. Apply the configured default banner if no matching image resolves. If there is no valid default, create a small offline landscape SVG. Manual Auto-set reports when it uses a fallback; it does not create an empty cover field.
 
 Downloaded banners are saved in `.attachments/banners/` by default.
+
+## Browse photo sites without a key
+
+Open **Pick a banner** to browse Pexels, Pixabay, or Unsplash in your browser. Sign in on the provider website if needed, then paste a direct image URL into **Use image**. This sets a remote banner and requires network access to display it; it does not import your account or collections. Pexels API search remains available with an existing key. Pixabay and Unsplash key fields are reserved for future integrations; entering them does not currently enable in-plugin search.
+
+Automatic login is not included. Unsplash requires an enabled parent application for its dynamic registration flow. Pexels and Pixabay's documented search APIs require keys.
 
 ## Note icons
 
@@ -72,7 +80,7 @@ Supported values include emoji, Iconify icons, favicon or image URLs, and local 
 
 ## Appearance controls
 
-Open the Cinematic Covers dashboard or plugin settings to control:
+Open the Obsidian Banners dashboard or plugin settings to control:
 
 | Option | What it changes |
 | --- | --- |
@@ -103,6 +111,12 @@ Tool:
 
 ## Content fonts
 
+Additional offline reading fonts: **Lato**, **Open Sans**, **Noto Sans**, and **Literata**. Select them under **Content font** in the dashboard or settings.
+
+Use **Font size** in the dashboard or plugin settings to adjust text from **12–32 px** (default **16 px**) in Reading view and Live Preview. The chosen size takes precedence over template text sizing; templates still control spacing.
+
+Font presets are bundled in the stylesheet and work offline without installing fonts on each device. Font licenses are included in `font-licenses/`.
+
 Use **Content font** in the dashboard or settings to choose the note’s prose font:
 
 - **Inter** — best general-purpose choice for mixed notes
@@ -126,18 +140,47 @@ with any content font preset.
 
 ## Commands
 
-- **Cinematic Covers: Open dashboard**
-- **Cinematic Covers: Auto-set banner (URL/Book)**
-- **Cinematic Covers: Pick banner from Pexels…**
-- **Cinematic Covers: Clear invalid banner field**
+- **Obsidian Banners: Open dashboard**
+- **Obsidian Banners: Auto-set banner (URL/Book)**
+- **Obsidian Banners: Pick banner from Pexels…**
+- **Obsidian Banners: Clear invalid banner field**
 
-You can also open the dashboard from the Cinematic Covers ribbon icon.
+You can also open the dashboard from the Obsidian Banners ribbon icon.
 
 ## Settings and privacy
 
 API keys are entered locally in plugin settings and are not included in the plugin release. The published repository does not contain your `data.json` settings file.
 
 Pexels and Pixabay are optional. You can use local images, URLs, Google Books, and the default banner without configuring an image-provider key.
+
+## Image performance
+
+New downloaded JPEG and PNG banners are resized proportionally to fit within 1600 × 1000 pixels, without upscaling, and encoded as WebP at 82% quality only if smaller. Existing vault images, remote URL banners, animated formats, and SVGs are not rewritten. Files over 24 MB and devices without the conversion APIs keep the original download. If conversion fails, the original is preserved.
+
+Unchanged banners are reused across note refreshes, and images decode asynchronously. Picker thumbnails load lazily.
+
+## Automatic updates
+
+Version 0.5.8 includes automatic updates, enabled by default. It checks the public `frimpsjoek/cover-banner` GitHub repository at startup and every six hours, downloads newer stable releases, and asks you to restart Obsidian to apply them. No account or API key is needed. Disable this under **Settings → Obsidian Banners → Automatic updates** if you prefer manual updates. Use **Check now** there or the **Check for plugin updates** command for an immediate check.
+
+Updates preserve `data.json`. The updater validates release identity and Obsidian compatibility, downloads all three required files before installation, and creates `.update-backup` copies. If a write fails, it attempts to restore the previous files. Network errors during background checks are logged without interrupting your work. Each device checks independently while Obsidian is running.
+
+Install 0.5.8 once using the steps below to get the updater. Future releases must be published on GitHub with matching `main.js`, `styles.css`, and `manifest.json` assets. Keep the font license notices with distributed releases.
+
+## Updating a manual installation
+
+1. Disable the plugin in Obsidian's Community plugins settings.
+2. Copy the new `main.js`, `styles.css`, and `manifest.json` into your vault's `.obsidian/plugins/cover-banner/` folder, replacing those three files. Keep `data.json` to preserve your settings.
+3. Enable the plugin again. Confirm version **0.6.3** in Community plugins.
+4. Repeat in each device's vault, or sync the updated plugin files and reload the plugin there.
+
+The plugin folder stays named `cover-banner` even though its display name is Obsidian Banners.
+
+## Device support
+
+On phones and tablets, the dashboard opens in a full tab. Scroll inside it to reach all appearance controls. On desktop, it opens in the right sidebar. Appearance controls apply globally to open notes.
+
+When copying or syncing this plugin to another device, include both `main.js` and `styles.css` alongside `manifest.json`. The stylesheet includes the fonts and presentation rules. Update all three files together, then disable and enable the plugin on that device to load the update. Local plugin settings may differ between devices depending on your sync setup.
 
 ## Troubleshooting
 
@@ -157,4 +200,4 @@ Pexels and Pixabay are optional. You can use local images, URLs, Google Books, a
 
 ## License
 
-Cinematic Covers is released under the [MIT License](./LICENSE).
+Obsidian Banners is released under the [MIT License](./LICENSE).

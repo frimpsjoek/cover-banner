@@ -1,5 +1,5 @@
 /*
-Cinematic Covers (Obsidian plugin)
+Obsidian Banners (Obsidian plugin)
 
 v0.5.2-local
 - One ribbon icon opens a RIGHT-PANEL dashboard (like Notion controls)
@@ -21,7 +21,8 @@ const {
   debounce,
   ItemView,
   WorkspaceLeaf,
-  setIcon
+  setIcon,
+  addIcon
 } = obsidian;
 
 const IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|bmp|tiff?|svg)$/i;
@@ -30,17 +31,23 @@ const DEFAULT_CINEMATIC_BANNER =
   "https://images.unsplash.com/photo-1486854561807-38fc02359493?auto=format&fit=crop&w=2400&q=82";
 
 const VIEW_TYPE = "cover-banner-dashboard";
+const TOOL_ICON = "obsidian-banners-landscape";
+const TOOL_ICON_SVG = '<g fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="16" width="84" height="68" rx="10"/><path d="m10 65 24-25 22 25 15-15 19 20"/><circle cx="70" cy="35" r="6"/></g>';
 
-// Curated stacks keep the selector useful without downloading fonts into the vault.
+// Fonts are bundled in styles.css for offline use across devices.
 // Inter is the best all-rounder for mixed Markdown, AI transcripts, and properties.
 const CONTENT_FONT_PRESETS = {
   inter: {
     label: "Inter (recommended)",
     stack: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
   },
+  lato: { label: "Lato — everyday reading", stack: '"Lato", sans-serif' },
+  openSans: { label: "Open Sans — clear and open", stack: '"Open Sans", sans-serif' },
+  notoSans: { label: "Noto Sans — clean reading", stack: '"Noto Sans", sans-serif' },
+  literata: { label: "Literata — book-style reading", stack: '"Literata", Georgia, serif' },
   theme: {
     label: "Theme default",
-    stack: "var(--font-text-theme, var(--font-text))"
+    stack: "var(--font-text-theme, -apple-system, BlinkMacSystemFont, sans-serif)"
   },
   atkinson: {
     label: "Atkinson Hyperlegible",
@@ -86,6 +93,37 @@ const READING_TEMPLATE_PRESETS = {
   }
 };
 
+// Resize new photo downloads once; never rewrite existing vault images.
+async function optimizeBannerDownload(buffer, contentType) {
+  if (!/^image\/(jpeg|png)(?:;|$)/i.test(contentType) || buffer.byteLength > 24 * 1024 * 1024) {
+    return { buffer, contentType };
+  }
+  let bitmap;
+  try {
+    if (typeof createImageBitmap !== "function" || typeof document === "undefined") return { buffer, contentType };
+    bitmap = await createImageBitmap(new Blob([buffer], { type: contentType }));
+    const scale = Math.min(1, 1600 / bitmap.width, 1000 / bitmap.height);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) return { buffer, contentType };
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/webp", 0.82));
+    if (!blob || blob.type !== "image/webp" || blob.size >= buffer.byteLength) return { buffer, contentType };
+    return { buffer: await blob.arrayBuffer(), contentType: "image/webp" };
+  } catch {
+    return { buffer, contentType };
+  } finally {
+    bitmap?.close();
+  }
+}
+
+function normalizeFontSize(value) {
+  const size = Number(value);
+  return Number.isFinite(size) ? Math.min(32, Math.max(12, Math.round(size))) : 16;
+}
+
 function getContentFontStack(value) {
   return CONTENT_FONT_PRESETS[value]?.stack || CONTENT_FONT_PRESETS.inter.stack;
 }
@@ -113,11 +151,14 @@ const DEFAULT_SETTINGS = {
   parallaxEnabled: true,
   parallaxStrength: 0.22, // 0..1 (0.22 = subtle)
 
+  autoUpdateEnabled: true,
+
   // UI
   showBannerButtons: true,
   hideProperties: false,
   hideTitle: false,
   contentFont: "inter",
+  contentFontSize: 16,
   readingTemplate: "balanced",
   enhancedMarkdown: true,
   formatAiChats: true,
@@ -227,25 +268,18 @@ function absolutizeUrl(maybeRelative, baseUrl) {
 }
 
 function pickOgImage(html, baseUrl) {
-  const candidates = [];
-  const metas = [
-    /<meta\s+property=["']og:image["']\s+content=["']([^"']+)["'][^>]*>/ig,
-    /<meta\s+content=["']([^"']+)["']\s+property=["']og:image["'][^>]*>/ig,
-    /<meta\s+name=["']twitter:image["']\s+content=["']([^"']+)["'][^>]*>/ig,
-    /<meta\s+content=["']([^"']+)["']\s+name=["']twitter:image["'][^>]*>/ig
-  ];
-
-  for (const re of metas) {
-    let m;
-    while ((m = re.exec(html)) !== null) {
-      const u = (m[1] || "").trim();
-      if (!u) continue;
-      const abs = absolutizeUrl(u, baseUrl);
-      if (abs && !isLikelyFaviconOrIconValue(abs)) candidates.push(abs);
+  const decode = value => value.replace(/&amp;/gi, "&").replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&#(\d+);/g, (_, n) => Number(n) <= 0x10ffff ? String.fromCodePoint(Number(n)) : "");
+  for (const tag of html.match(/<meta\b[^>]*>/gi) || []) {
+    const attrs = {};
+    for (const match of tag.matchAll(/([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)) {
+      attrs[match[1].toLowerCase()] = decode(match[2] ?? match[3] ?? match[4] ?? "");
     }
+    const name = (attrs.property || attrs.name || "").toLowerCase();
+    if (!["og:image", "og:image:url", "og:image:secure_url", "twitter:image", "twitter:image:src"].includes(name)) continue;
+    const url = absolutizeUrl(attrs.content, baseUrl);
+    if (url && isHttpUrl(url) && !isLikelyFaviconOrIconValue(url)) return url;
   }
-
-  return candidates.length ? candidates[0] : null;
+  return null;
 }
 
 async function ensureFolder(app, folderPath) {
@@ -292,7 +326,29 @@ class PexelsPickerModal extends Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl("h2", { text: "Pick banner from Pexels" });
+    contentEl.createEl("h2", { text: "Pick a banner" });
+    contentEl.createEl("p", { text: "Browse photo websites without an API key. Sign in on their website if needed, then paste a direct image URL below. Photo page links are not image URLs." });
+    const sites = contentEl.createDiv({ cls: "cover-banner-picker__sites" });
+    for (const [name, url] of [["Pexels", "https://www.pexels.com/"], ["Pixabay", "https://pixabay.com/"], ["Unsplash", "https://unsplash.com/"]]) {
+      sites.createEl("a", { text: `Browse ${name}`, attr: { href: url, target: "_blank", rel: "noopener noreferrer", cls: "external-link" } });
+    }
+    const pasteRow = contentEl.createDiv({ cls: "cover-banner-picker__row" });
+    const imageInput = new TextComponent(pasteRow);
+    imageInput.setPlaceholder("Direct image URL (https://…)");
+    imageInput.inputEl.setAttribute("aria-label", "Direct banner image URL");
+    const apply = pasteRow.createEl("button", { text: "Use image", attr: { type: "button" } });
+    apply.addEventListener("click", async () => {
+      const url = imageInput.getValue().trim();
+      if (!isHttpUrl(url)) { new Notice("Paste an HTTP or HTTPS image URL."); return; }
+      apply.disabled = true;
+      try {
+        await this.plugin.setFrontmatterPrimary(this.file, url);
+        this.plugin.requestRefresh();
+        this.close();
+      } catch { new Notice("Could not save this banner. Try again."); }
+      finally { apply.disabled = false; }
+    });
+    contentEl.createEl("h3", { text: "Search Pexels with an API key" });
 
     const row = contentEl.createDiv({ cls: "cover-banner-picker__row" });
     row.createEl("label", { text: "Search" });
@@ -311,7 +367,7 @@ class PexelsPickerModal extends Modal {
 
       const key = (this.plugin.settings.pexelsApiKey || "").trim();
       if (!key) {
-        new Notice("Cinematic Covers: set Pexels API key in plugin settings");
+        new Notice("Obsidian Banners: set Pexels API key in plugin settings");
         return;
       }
 
@@ -343,6 +399,7 @@ class PexelsPickerModal extends Modal {
         const item = grid.createDiv({ cls: "cover-banner-picker__item" });
         const img = item.createEl("img", { attr: { src: thumb } });
         img.loading = "lazy";
+        img.decoding = "async";
         item.createDiv({ text: p?.photographer ? `by ${p.photographer}` : "", cls: "cover-banner-picker__credit" });
 
         item.addEventListener("click", async () => {
@@ -350,18 +407,18 @@ class PexelsPickerModal extends Modal {
           const localLink = await this.plugin.downloadImageToVault(full, `pexels-${this.file.basename}`);
           if (localLink) {
             await this.plugin.setFrontmatterPrimary(this.file, localLink);
-            new Notice("Cinematic Covers: banner set from Pexels");
+            new Notice("Obsidian Banners: banner set from Pexels");
             this.plugin.requestRefresh();
             this.close();
           } else {
             // Fallback to remote URL if binary download fails in the local environment.
             try {
               await this.plugin.setFrontmatterPrimary(this.file, full);
-              new Notice("Cinematic Covers: banner set from Pexels URL");
+              new Notice("Obsidian Banners: banner set from Pexels URL");
               this.plugin.requestRefresh();
               this.close();
             } catch {
-              new Notice("Cinematic Covers: failed to set image");
+              new Notice("Obsidian Banners: failed to set image");
               item.removeClass("is-loading");
             }
           }
@@ -374,7 +431,7 @@ class PexelsPickerModal extends Modal {
       if (ev.key === "Enter") runSearch();
     });
 
-    setTimeout(runSearch, 100);
+    if (this.plugin.settings.pexelsApiKey?.trim()) void runSearch();
   }
 
   onClose() {
@@ -558,11 +615,11 @@ class CoverBannerDashboardView extends ItemView {
   }
 
   getDisplayText() {
-    return "Cinematic Covers";
+    return "Obsidian Banners";
   }
 
   getIcon() {
-    return "image";
+    return TOOL_ICON;
   }
 
   async onOpen() {
@@ -574,12 +631,17 @@ class CoverBannerDashboardView extends ItemView {
   }
 
   render() {
-    const el = this.containerEl;
-    el.empty();
-    el.addClass("cover-banner-dashboard");
+    const scrollTop = this.contentEl.querySelector(".cover-banner-dashboard")?.scrollTop || 0;
+    this.containerEl.addClass("cover-banner-dashboard-view");
+    this.contentEl.empty();
+    this.contentEl.addClass("cover-banner-dashboard-host");
+    const el = this.contentEl.createDiv({ cls: "cover-banner-dashboard" });
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("aria-label", "Cover and reading settings");
 
     const header = el.createDiv({ cls: "cover-banner-dashboard__header" });
-    header.createEl("h3", { text: "Cinematic Covers" });
+    header.createEl("h3", { text: "Obsidian Banners" });
+    header.createDiv({ text: "Covers, fonts, and note styling.", cls: "cover-banner-dashboard__sub" });
 
     const file = this.plugin.getCurrentMarkdownFile();
     const fileName = file?.basename || "(no note selected)";
@@ -587,41 +649,42 @@ class CoverBannerDashboardView extends ItemView {
 
     const actions = el.createDiv({ cls: "cover-banner-dashboard__actions" });
 
-    const mkBtn = (label, onClick) => {
-      const b = actions.createEl("button", { text: label });
+    const mkBtn = (icon, label, onClick) => {
+      const b = actions.createEl("button", { cls: "cover-banner-dashboard__action", attr: { type: "button", "aria-label": label, title: label } });
+      setIcon(b, icon);
       b.addEventListener("click", onClick);
       return b;
     };
 
-    mkBtn("Auto-set banner (URL/Book)", async () => {
+    mkBtn("wand-sparkles", "Auto-set banner (URL/Book)", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cinematic Covers: no active note");
+        new Notice("Obsidian Banners: no active note");
         return;
       }
       const ok = await this.plugin.autoSetForFile(f, { force: true, createEmptyOnFail: true });
-      new Notice(ok ? "Cinematic Covers: banner set" : "Cinematic Covers: no banner found");
+      new Notice(ok ? "Obsidian Banners: banner set" : "Obsidian Banners: no banner found");
       this.plugin.requestRefresh();
       this.render();
     });
 
-    mkBtn("Pick banner from Pexels…", async () => {
+    mkBtn("image-plus", "Pick a banner…", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cinematic Covers: no active note");
+        new Notice("Obsidian Banners: no active note");
         return;
       }
       new PexelsPickerModal(this.app, this.plugin, f).open();
     });
 
-    mkBtn("Clear invalid coverFilename", async () => {
+    mkBtn("eraser", "Clear invalid banner field", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cinematic Covers: no active note");
+        new Notice("Obsidian Banners: no active note");
         return;
       }
       const cleared = await this.plugin.clearInvalidPrimaryField(f);
-      new Notice(cleared ? "Cleared coverFilename" : "Nothing to clear");
+      new Notice(cleared ? "Cleared invalid banner field" : "Nothing to clear");
       this.plugin.requestRefresh();
       this.render();
     });
@@ -637,7 +700,7 @@ class CoverBannerDashboardView extends ItemView {
     iconSave.addEventListener("click", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cinematic Covers: no active note");
+        new Notice("Obsidian Banners: no active note");
         return;
       }
       await this.plugin.setFaviconField(f, iconInput.value.trim());
@@ -646,7 +709,7 @@ class CoverBannerDashboardView extends ItemView {
     iconClear.addEventListener("click", async () => {
       const f = this.plugin.getCurrentMarkdownFile();
       if (!looksLikeMarkdownFile(f)) {
-        new Notice("Cinematic Covers: no active note");
+        new Notice("Obsidian Banners: no active note");
         return;
       }
       await this.plugin.setFaviconField(f, "", { allowEmpty: true });
@@ -706,7 +769,7 @@ class CoverBannerDashboardView extends ItemView {
     pinToggle.addEventListener("change", async () => {
       this.plugin.settings.pinBanner = !!pinToggle.checked;
       await this.plugin.saveSettings();
-      new Notice(`Cinematic Covers: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
+      new Notice(`Obsidian Banners: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
       this.plugin.refreshAllViewBanners();
       this.plugin.refreshDashboard();
     });
@@ -792,6 +855,11 @@ class CoverBannerDashboardView extends ItemView {
       this.plugin.requestRefresh();
     });
 
+    addRange("Font size (px)", 12, 32, 1, () => normalizeFontSize(this.plugin.settings.contentFontSize), async (value) => {
+      this.plugin.settings.contentFontSize = normalizeFontSize(value);
+      await this.plugin.saveSettings();
+    });
+
     const templateRow = el.createDiv({ cls: "cover-banner-dashboard__row" });
     templateRow.createDiv({ text: "Reading template", cls: "cover-banner-dashboard__label" });
     const templateSelect = templateRow.createEl("select");
@@ -852,19 +920,27 @@ class CoverBannerDashboardView extends ItemView {
     keyInput.addEventListener("change", async () => {
       this.plugin.settings.pexelsApiKey = keyInput.value;
       await this.plugin.saveSettings();
-      new Notice("Cinematic Covers: saved Pexels key");
+      new Notice("Obsidian Banners: saved Pexels key");
     });
+    el.scrollTop = scrollTop;
   }
 }
 
 module.exports = class CoverBannerPlugin extends Plugin {
   async onload() {
+    addIcon(TOOL_ICON, TOOL_ICON_SVG);
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 
     let didMigrate = false;
+    const fontSize = normalizeFontSize(this.settings.contentFontSize);
+    if (fontSize !== this.settings.contentFontSize) {
+      this.settings.contentFontSize = fontSize;
+      didMigrate = true;
+    }
 
     // normalize boolean settings that might have been serialized oddly
     const boolFields = [
+      "autoUpdateEnabled",
       "pinBanner",
       "parallaxEnabled",
       "showBannerButtons",
@@ -933,11 +1009,18 @@ module.exports = class CoverBannerPlugin extends Plugin {
     if (didMigrate) {
       // persist migration so data.json reflects the active settings
       await this.saveData(this.settings);
-      new Notice("Cinematic Covers: migrated settings (primary field = cover)");
+      new Notice("Obsidian Banners: migrated settings (primary field = cover)");
       console.log("CoverBanner: migrated settings", this.settings);
     }
 
     this._autoSetCount = 0;
+    this.app.workspace.onLayoutReady(() => {
+      if (this.settings.autoUpdateEnabled) void this.checkForUpdates();
+    });
+    this.registerInterval(setInterval(() => {
+      if (this.settings.autoUpdateEnabled) void this.checkForUpdates();
+    }, 6 * 60 * 60 * 1000));
+    this.addCommand({ id: "check-for-updates", name: "Check for plugin updates", callback: () => this.checkForUpdates(true) });
 
     // Parallax bookkeeping (view-content el -> { banner, onScroll })
     this._parallaxMap = new WeakMap();
@@ -946,7 +1029,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     this.registerView(VIEW_TYPE, (leaf) => new CoverBannerDashboardView(leaf, this));
 
     // SINGLE ribbon icon: open dashboard
-    this.addRibbonIcon("layout-dashboard", "Cinematic Covers dashboard", async () => {
+    this.addRibbonIcon(TOOL_ICON, "Obsidian Banners dashboard", async () => {
       await this.openDashboard();
     });
 
@@ -966,7 +1049,9 @@ module.exports = class CoverBannerPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on("layout-change", () => this._refreshDebounced()));
     this.registerEvent(this.app.metadataCache.on("changed", () => this._refreshDebounced()));
 
-    setTimeout(() => this._refreshDebounced(), 1200);
+    this.app.workspace.onLayoutReady(() => this.requestRefresh());
+    this.registerEvent(this.app.workspace.on("file-open", () => this._refreshDebounced()));
+    this.registerMarkdownPostProcessor(() => this._refreshDebounced());
 
     // Commands (also accessible via dashboard buttons)
     this.addCommand({
@@ -977,11 +1062,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
 
     this.addCommand({
       id: "cover-banner-pexels-picker",
-      name: "Pick banner from Pexels…",
+      name: "Pick a banner…",
       callback: async () => {
         const file = this.getCurrentMarkdownFile();
         if (!looksLikeMarkdownFile(file)) {
-          new Notice("Cinematic Covers: no active note");
+          new Notice("Obsidian Banners: no active note");
           return;
         }
         new PexelsPickerModal(this.app, this, file).open();
@@ -994,11 +1079,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
       callback: async () => {
         const file = this.getCurrentMarkdownFile();
         if (!looksLikeMarkdownFile(file)) {
-          new Notice("Cinematic Covers: no active note");
+          new Notice("Obsidian Banners: no active note");
           return;
         }
         const ok = await this.autoSetForFile(file, { force: true, createEmptyOnFail: true });
-        new Notice(ok ? "Cinematic Covers: banner set" : "Cinematic Covers: no banner found");
+        new Notice(ok ? "Obsidian Banners: banner set" : "Obsidian Banners: no banner found");
         this.requestRefresh();
       }
     });
@@ -1009,11 +1094,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
       callback: async () => {
         const file = this.getCurrentMarkdownFile();
         if (!looksLikeMarkdownFile(file)) {
-          new Notice("Cinematic Covers: no active note");
+          new Notice("Obsidian Banners: no active note");
           return;
         }
         const cleared = await this.clearInvalidPrimaryField(file);
-        new Notice(cleared ? `Cinematic Covers: cleared ${this.settings.fieldPrimary}` : "Cinematic Covers: nothing to clear");
+        new Notice(cleared ? `Obsidian Banners: cleared ${this.settings.fieldPrimary}` : "Obsidian Banners: nothing to clear");
         this.requestRefresh();
       }
     });
@@ -1030,13 +1115,81 @@ module.exports = class CoverBannerPlugin extends Plugin {
     this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach((leaf) => leaf.detach());
   }
 
+  async checkForUpdates(manual = false) {
+    if (this._updating) return;
+    this._updating = true;
+    try {
+      const dir = this.manifest.dir;
+      if (!dir) throw new Error("Plugin installation folder is unavailable.");
+      const adapter = this.app.vault.adapter;
+      // Read the installed manifest: a downloaded update may be awaiting restart.
+      const installed = JSON.parse(await adapter.read(`${dir}/manifest.json`));
+      const response = await requestUrl({ url: "https://api.github.com/repos/frimpsjoek/cover-banner/releases/latest", headers: { Accept: "application/vnd.github+json" } });
+      const release = response.json;
+      if (release.draft || release.prerelease) throw new Error("No stable release available.");
+      const version = String(release.tag_name || "").replace(/^v/, "");
+      const parts = value => {
+        if (!/^\d+\.\d+\.\d+$/.test(value)) throw new Error("Invalid release version.");
+        return value.split(".").map(Number);
+      };
+      const newer = (a, b) => {
+        const x = parts(a), y = parts(b);
+        for (let i = 0; i < 3; i++) { if (x[i] !== y[i]) return x[i] > y[i]; }
+        return false;
+      };
+      if (!newer(version, installed.version)) {
+        if (manual) new Notice(installed.version !== this.manifest.version
+          ? "Obsidian Banners: update installed. Restart Obsidian to finish."
+          : "Obsidian Banners is up to date.");
+        return;
+      }
+      const names = ["main.js", "styles.css", "manifest.json"];
+      const files = {};
+      for (const name of names) {
+        const asset = release.assets?.find(a => a.name === name);
+        const prefix = "https://github.com/frimpsjoek/cover-banner/releases/download/";
+        if (!asset?.browser_download_url?.startsWith(prefix)) throw new Error(`Release is missing ${name}.`);
+        const result = await requestUrl({ url: asset.browser_download_url });
+        if (!result.text?.trim()) throw new Error(`Downloaded ${name} is empty.`);
+        files[name] = result.text;
+      }
+      const manifest = JSON.parse(files["manifest.json"]);
+      if (manifest.id !== this.manifest.id || manifest.version !== version) throw new Error("Release manifest does not match this plugin.");
+      if (manifest.minAppVersion && newer(manifest.minAppVersion, obsidian.apiVersion)) throw new Error("Update Obsidian before installing this plugin release.");
+      // Download and validate everything first. Back up before replacing any file.
+      const backups = {};
+      for (const name of names) backups[name] = await adapter.read(`${dir}/${name}`);
+      for (const name of names) await adapter.write(`${dir}/${name}.update-backup`, backups[name]);
+      const changed = [];
+      try {
+        for (const name of names) {
+          changed.push(name);
+          await adapter.write(`${dir}/${name}`, files[name]);
+        }
+      } catch (error) {
+        const failures = [];
+        for (const name of changed.reverse()) {
+          try { await adapter.write(`${dir}/${name}`, backups[name]); }
+          catch { failures.push(name); }
+        }
+        if (failures.length) throw new Error(`Restore ${failures.join(", ")} from the .update-backup files in the plugin folder.`);
+        throw error;
+      }
+      new Notice(`Obsidian Banners ${version} installed. Restart Obsidian to finish updating.`, 15000);
+    } catch (error) {
+      console.error("Obsidian Banners update failed", error);
+      if (manual) new Notice(`Obsidian Banners: update failed. ${error.message}`, 10000);
+    } finally {
+      this._updating = false;
+    }
+  }
+
   async saveSettings() {
     await this.saveData(this.settings);
   }
 
   requestRefresh() {
-    this._refreshDebounced();
-    this.refreshDashboard();
+    this.refreshAllViewBanners();
   }
 
   refreshAllViewBanners() {
@@ -1071,9 +1224,13 @@ module.exports = class CoverBannerPlugin extends Plugin {
   }
 
   async openDashboard() {
-    // open in right leaf
+    this._dashboardFile = this.getCurrentMarkdownFile();
+    // Open a full tab on mobile so controls have usable screen space.
     let leaf = this.app.workspace.getLeavesOfType(VIEW_TYPE)[0];
-    if (!leaf) leaf = this.app.workspace.getRightLeaf(false);
+    if (!leaf) leaf = obsidian.Platform?.isMobile
+      ? this.app.workspace.getLeaf(true)
+      : this.app.workspace.getRightLeaf(false);
+    if (!leaf) leaf = this.app.workspace.getLeaf(true);
     await leaf.setViewState({ type: VIEW_TYPE, active: true });
     this.app.workspace.revealLeaf(leaf);
   }
@@ -1120,11 +1277,12 @@ module.exports = class CoverBannerPlugin extends Plugin {
   }
 
   getCurrentMarkdownFile() {
+    const active = this.getActiveFile();
+    if (looksLikeMarkdownFile(active)) return active;
+    if (looksLikeMarkdownFile(this._dashboardFile)) return this._dashboardFile;
     const leaf = this.getActiveMarkdownLeaf();
     const file = leaf?.view?.file;
     if (looksLikeMarkdownFile(file)) return file;
-    const active = this.getActiveFile();
-    if (looksLikeMarkdownFile(active)) return active;
     return null;
   }
 
@@ -1246,7 +1404,9 @@ module.exports = class CoverBannerPlugin extends Plugin {
 
     const root = view.containerEl;
     if (!root) return;
+    const document = root.ownerDocument;
 
+    root.classList.toggle("cover-banner--hide-properties", !!this.settings.hideProperties);
     root.classList.toggle("cover-banner--hide-title", !!this.settings.hideTitle);
     root.classList.toggle("cover-banner--enhanced-markdown", !!this.settings.enhancedMarkdown);
     root.classList.toggle("cover-banner--content-font", true);
@@ -1256,6 +1416,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     const template = READING_TEMPLATE_PRESETS[this.settings.readingTemplate] || READING_TEMPLATE_PRESETS.balanced;
     root.classList.add(template.className);
     root.style.setProperty("--cover-banner-content-font", getContentFontStack(this.settings.contentFont));
+    root.style.setProperty("--cover-banner-font-size", `${normalizeFontSize(this.settings.contentFontSize)}px`);
     if (this.settings.enhancedMarkdown && this.settings.formatAiChats) {
       this.decorateAiChatBlocks(root);
     } else {
@@ -1274,6 +1435,18 @@ module.exports = class CoverBannerPlugin extends Plugin {
     viewContent.classList.toggle("cover-banner--hide-title", !!this.settings.hideTitle);
     viewContent.classList.toggle("cover-banner--hide-properties", !!this.settings.hideProperties);
 
+    const fm = this.getFrontmatterSafe(file);
+    const rawValue = this.getBannerValueFromFrontmatter(fm) || normalizeFieldValue(this.settings.defaultBanner);
+    const src = this.resolveBannerValueToSrc(file, rawValue);
+    const renderKey = JSON.stringify([file.path, src, this.getFaviconValueFromFrontmatter(fm),
+      ...["heightPx", "dim", "borderRadiusPx", "objectFit", "fadeBottom", "pinBanner",
+        "showBannerButtons", "parallaxEnabled", "parallaxStrength", "defaultFavicon"].map(key => this.settings[key])]);
+    viewContent.querySelectorAll(".cover-banner__properties-hidden").forEach(el => {
+      el.classList.toggle("cover-banner__properties-hidden", !!this.settings.hideProperties);
+    });
+    const existingBanner = viewContent.querySelector(".cover-banner");
+    if (existingBanner?._renderKey === renderKey) return;
+
     // cleanup old parallax handler for this scroll container (if any)
     try {
       const prev = this._parallaxMap?.get(viewContent);
@@ -1291,10 +1464,6 @@ module.exports = class CoverBannerPlugin extends Plugin {
       el.remove();
     });
 
-    const fm = this.getFrontmatterSafe(file);
-
-    const rawValue = this.getBannerValueFromFrontmatter(fm) || normalizeFieldValue(this.settings.defaultBanner);
-    const src = this.resolveBannerValueToSrc(file, rawValue);
     const isPinned = coerceBoolean(this.settings.pinBanner, false);
     const showBannerButtons = coerceBoolean(this.settings.showBannerButtons, true);
 
@@ -1306,6 +1475,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
 
     const banner = document.createElement("div");
     banner.className = "cover-banner";
+    banner._renderKey = renderKey;
     banner.style.setProperty("--cover-banner-height", `${this.settings.heightPx}px`);
     banner.style.setProperty("--cover-banner-dim", String(this.settings.dim));
     banner.style.setProperty("--cover-banner-radius", `${this.settings.borderRadiusPx}px`);
@@ -1327,6 +1497,8 @@ module.exports = class CoverBannerPlugin extends Plugin {
       const img = document.createElement("img");
       img.className = "cover-banner__img";
       img.alt = "";
+      img.decoding = "async";
+      img.setAttribute("fetchpriority", "high");
       img.src = src;
       banner.appendChild(img);
       imgEl = img;
@@ -1355,14 +1527,14 @@ module.exports = class CoverBannerPlugin extends Plugin {
       };
 
       actions.appendChild(
-        mkAction("layout-dashboard", "Open Cinematic Covers dashboard", () => this.openDashboard())
+        mkAction(TOOL_ICON, "Open Obsidian Banners dashboard", () => this.openDashboard())
       );
 
       actions.appendChild(
         mkAction("image", "Pick banner from Pexels", () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
-            new Notice("Cinematic Covers: no active note");
+            new Notice("Obsidian Banners: no active note");
             return;
           }
           new PexelsPickerModal(this.app, this, f).open();
@@ -1373,11 +1545,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
         mkAction("sparkles", "Auto-set banner", async () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
-            new Notice("Cinematic Covers: no active note");
+            new Notice("Obsidian Banners: no active note");
             return;
           }
           const ok = await this.autoSetForFile(f, { force: true, createEmptyOnFail: true });
-          new Notice(ok ? "Cinematic Covers: banner set" : "Cinematic Covers: no banner found");
+          new Notice(ok ? "Obsidian Banners: banner set" : "Obsidian Banners: no banner found");
           this.requestRefresh();
         })
       );
@@ -1386,11 +1558,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
         mkAction("x-circle", "Clear invalid banner field", async () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
-            new Notice("Cinematic Covers: no active note");
+            new Notice("Obsidian Banners: no active note");
             return;
           }
           const cleared = await this.clearInvalidPrimaryField(f);
-          new Notice(cleared ? `Cinematic Covers: cleared ${this.settings.fieldPrimary}` : "Cinematic Covers: nothing to clear");
+          new Notice(cleared ? `Obsidian Banners: cleared ${this.settings.fieldPrimary}` : "Obsidian Banners: nothing to clear");
           this.requestRefresh();
         })
       );
@@ -1399,7 +1571,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
         mkAction("pin", isPinned ? "Unpin banner" : "Pin banner", async () => {
           this.settings.pinBanner = !coerceBoolean(this.settings.pinBanner, false);
           await this.saveSettings();
-          new Notice(`Cinematic Covers: pinBanner = ${this.settings.pinBanner ? "ON" : "OFF"}`);
+          new Notice(`Obsidian Banners: pinBanner = ${this.settings.pinBanner ? "ON" : "OFF"}`);
           this.refreshAllViewBanners();
           this.refreshDashboard();
         })
@@ -1408,7 +1580,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
       actions.appendChild(
         mkAction("smile-plus", "Pick note emoji/icon", () => {
           const f = this.getCurrentMarkdownFile();
-          if (!looksLikeMarkdownFile(f)) { new Notice("Cinematic Covers: no active note"); return; }
+          if (!looksLikeMarkdownFile(f)) { new Notice("Obsidian Banners: no active note"); return; }
           new IconPickerModal(this.app, this, f).open();
         })
       );
@@ -1606,8 +1778,22 @@ module.exports = class CoverBannerPlugin extends Plugin {
     const ok2 = await this.autoSetFromGoogleBooks(file);
     if (ok2) return true;
 
-    if (createEmptyOnFail) await this.ensurePrimaryFieldExists(file);
-    return false;
+    // Ordinary notes often have no page URL and are not books. Always provide
+    // a usable default rather than creating an empty cover field.
+    const configured = normalizeFieldValue(this.settings.defaultBanner);
+    if (configured && this.resolveBannerValueToSrc(file, configured)) {
+      await this.setFrontmatterPrimary(file, configured);
+      if (createEmptyOnFail) new Notice("No matching photo found; applied the default banner.");
+      return true;
+    }
+    await ensureFolder(this.app, this.settings.bannerFolder);
+    const path = `${this.settings.bannerFolder}/default-landscape.svg`;
+    if (!await this.app.vault.adapter.exists(path)) {
+      await this.app.vault.adapter.write(path, '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="600" viewBox="0 0 1600 600"><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#172c49"/><stop offset="1" stop-color="#a0bbbd"/></linearGradient></defs><path fill="url(#sky)" d="M0 0h1600v600H0z"/><circle fill="#f8dda6" cx="1220" cy="150" r="65"/><path fill="#426775" d="m0 440 350-280 390 300 360-230 500 260v110H0z"/><path fill="#223f51" d="m0 550 450-220 430 230 400-240 320 160v120H0z"/></svg>');
+    }
+    await this.setFrontmatterPrimary(file, `[[${path}]]`);
+    if (createEmptyOnFail) new Notice("No matching photo found; applied an offline landscape banner.");
+    return true;
   }
 
   async ensurePrimaryFieldExists(file) {
@@ -1620,6 +1806,13 @@ module.exports = class CoverBannerPlugin extends Plugin {
   async autoSetFromUrl(file, pageUrl) {
     try {
       const res = await requestUrl({ url: pageUrl, method: "GET" });
+      const type = res?.headers?.["content-type"] || res?.headers?.["Content-Type"] || "";
+      if (/^image\//i.test(type)) {
+        const link = await this.downloadImageToVault(pageUrl, file.basename);
+        if (!link) return false;
+        await this.setFrontmatterPrimary(file, link);
+        return true;
+      }
       const html = res?.text;
       if (!html) return false;
 
@@ -1702,9 +1895,11 @@ module.exports = class CoverBannerPlugin extends Plugin {
       const contentType = r?.headers?.["content-type"] || r?.headers?.["Content-Type"] || "";
       const status = r?.status;
 
+      if ((status && (status < 200 || status >= 300)) || (contentType && !/^image\//i.test(contentType))) return null;
+
       if (!arrayBuffer) {
         console.error("CoverBanner: download missing arrayBuffer", { imageUrl, status, contentType, keys: r ? Object.keys(r) : null });
-        new Notice(`Cinematic Covers: failed to download (status ${status ?? "?"})`);
+        new Notice(`Obsidian Banners: failed to download (status ${status ?? "?"})`);
         return null;
       }
 
@@ -1713,7 +1908,8 @@ module.exports = class CoverBannerPlugin extends Plugin {
         return null;
       }
 
-      const ext = extFromContentType(contentType);
+      const optimized = await optimizeBannerDownload(arrayBuffer, contentType);
+      const ext = extFromContentType(optimized.contentType);
       try {
         await ensureFolder(this.app, this.settings.bannerFolder);
       } catch (e) {
@@ -1726,14 +1922,14 @@ module.exports = class CoverBannerPlugin extends Plugin {
       const filename = `${base}-${stamp}${ext}`;
       const destPath = `${this.settings.bannerFolder}/${filename}`;
 
-      const bytes = new Uint8Array(arrayBuffer);
+      const bytes = new Uint8Array(optimized.buffer);
       const existing = this.app.vault.getAbstractFileByPath(destPath);
       if (!existing) await this.app.vault.createBinary(destPath, bytes);
 
       return `[[${destPath}]]`;
     } catch (e) {
       console.error("CoverBanner: downloadImageToVault error", e);
-      new Notice("Cinematic Covers: download error (see console)");
+      new Notice("Obsidian Banners: download error (see console)");
       return null;
     }
   }
@@ -1781,8 +1977,22 @@ class CoverBannerSettingTab extends PluginSettingTab {
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Cinematic Covers" });
-    containerEl.createEl("p", { text: "Version: v0.5.2-local" });
+    containerEl.createEl("h2", { text: "Obsidian Banners" });
+    containerEl.createEl("p", { text: `Version: ${this.plugin.manifest.version}` });
+    new Setting(containerEl)
+      .setName("Automatic updates")
+      .setDesc("Check GitHub on startup and every six hours. Download stable releases automatically; restart Obsidian to apply. Settings are preserved.")
+      .addToggle(t => t.setValue(this.plugin.settings.autoUpdateEnabled).onChange(async value => {
+        this.plugin.settings.autoUpdateEnabled = value;
+        await this.plugin.saveSettings();
+      }));
+    new Setting(containerEl)
+      .setName("Check for updates")
+      .setDesc("Download the latest compatible release from frimpsjoek/cover-banner.")
+      .addButton(b => b.setButtonText("Check now").onClick(async () => {
+        b.setDisabled(true);
+        try { await this.plugin.checkForUpdates(true); } finally { b.setDisabled(false); }
+      }));
     containerEl.createEl("p", { text: "Most controls are available in the right-panel dashboard (ribbon icon), but core settings live here." });
 
     containerEl.createEl("h3", { text: "Storage" });
@@ -1806,7 +2016,7 @@ class CoverBannerSettingTab extends PluginSettingTab {
         t.setValue(!!this.plugin.settings.pinBanner).onChange(async (v) => {
           this.plugin.settings.pinBanner = !!v;
           await this.plugin.saveSettings();
-          new Notice(`Cinematic Covers: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
+          new Notice(`Obsidian Banners: pinBanner = ${this.plugin.settings.pinBanner ? "ON" : "OFF"}`);
           this.plugin.refreshAllViewBanners();
           this.plugin.refreshDashboard();
         })
@@ -1896,7 +2106,7 @@ class CoverBannerSettingTab extends PluginSettingTab {
     containerEl.createEl("h3", { text: "Typography" });
     new Setting(containerEl)
       .setName("Content font")
-      .setDesc("Inter is recommended for mixed Markdown and AI notes. Choose Source Serif 4 for long-form reading or IBM Plex Mono for technical notes. Fonts use installed system fallbacks.")
+      .setDesc("Inter is recommended for mixed Markdown and AI notes. Choose Source Serif 4 for long-form reading or IBM Plex Mono for technical notes. Fonts are bundled for offline use.")
       .addDropdown((d) => {
         for (const [value, preset] of Object.entries(CONTENT_FONT_PRESETS)) {
           d.addOption(value, preset.label);
@@ -1908,6 +2118,18 @@ class CoverBannerSettingTab extends PluginSettingTab {
           this.plugin.requestRefresh();
         });
       });
+
+    new Setting(containerEl)
+      .setName("Font size")
+      .setDesc("Note text size in pixels, from 12 to 32. Applies in Reading view and Live Preview.")
+      .addSlider(slider => slider.setLimits(12, 32, 1)
+        .setValue(normalizeFontSize(this.plugin.settings.contentFontSize))
+        .setDynamicTooltip()
+        .onChange(async value => {
+          this.plugin.settings.contentFontSize = normalizeFontSize(value);
+          this.plugin.requestRefresh();
+          await this.plugin.saveSettings();
+        }));
 
     new Setting(containerEl)
       .setName("Reading template")

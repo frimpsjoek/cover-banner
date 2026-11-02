@@ -1,9 +1,9 @@
 {
   "id": "cover-banner",
-  "name": "Cinematic Covers",
-  "version": "0.5.5",
+  "name": "Obsidian Banners",
+  "version": "0.6.3",
   "minAppVersion": "1.4.0",
-  "description": "Cinematic cover banners with autoset, icons, parallax, readable typography, and selectable Markdown reading templates.",
+  "description": "Covers, fonts, and note styling with customizable banners, icons, typography, reading layouts, and title and properties controls.",
   "author": "Joseph Frimpong",
   "authorUrl": "https://github.com/frimpsjoek",
   "isDesktopOnly": false
