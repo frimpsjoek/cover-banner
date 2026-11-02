@@ -194,6 +194,75 @@ function codeFontLabel(preset) {
   return preset.family && !isFontInstalled(preset.family) ? `${preset.label} (not installed)` : preset.label;
 }
 
+const SHELL_LANGUAGES = new Set(["bash", "sh", "shell", "zsh", "console"]);
+const SHELL_KEYWORDS = new Set(["if", "then", "elif", "else", "fi", "for", "while", "until", "do", "done", "case", "esac", "in", "function", "time"]);
+// A following word is a command after these, so `do qsub x` colours qsub.
+const SHELL_COMMAND_AFTER = new Set(["then", "elif", "else", "do", "time"]);
+
+function isShellLanguage(language) {
+  return SHELL_LANGUAGES.has(String(language || "").toLowerCase());
+}
+
+// Highlighters colour only commands on a fixed list, which leaves most real commands
+// (mpirun, qsub, project tools) plain. Position finds them: the first word of a command.
+function shellTokens(line, continued = false) {
+  const tokens = [];
+  let i = 0;
+  let expectCommand = !continued;
+  let redirect = false;
+  while (i < line.length) {
+    const ch = line[i];
+    if (/\s/.test(ch)) { i++; continue; }
+    if (ch === "#") break;
+    if (ch === "\\") { i += 2; continue; }
+    if (ch === '"' || ch === "'") {
+      const end = line.indexOf(ch, i + 1);
+      if (end < 0) break;
+      i = end + 1;
+      expectCommand = false;
+      redirect = false;
+      continue;
+    }
+    if (ch === "&" && line[i + 1] === "&" || ch === "|" || ch === ";" || ch === "(" || ch === ")") {
+      i += line[i + 1] === ch ? 2 : 1;
+      expectCommand = true;
+      redirect = false;
+      continue;
+    }
+    const start = i;
+    while (i < line.length && !/[\s;|()"']/.test(line[i]) && !(line[i] === "&" && line[i + 1] === "&")) i++;
+    const word = line.slice(start, i);
+    if (/^\d*[<>]/.test(word)) { redirect = !/[<>]&?\d+$/.test(word) && /[<>]$/.test(word); continue; }
+    if (redirect) { redirect = false; continue; }
+    if (expectCommand && /^[A-Za-z_]\w*=/.test(word)) continue;
+    if (SHELL_KEYWORDS.has(word)) { expectCommand = SHELL_COMMAND_AFTER.has(word); continue; }
+    const to = i;
+    if (expectCommand) {
+      tokens.push({ from: start, to, type: "cmd" });
+      expectCommand = false;
+    } else if (/^--?[A-Za-z0-9]/.test(word)) {
+      tokens.push({ from: start, to, type: "flag" });
+    } else if (/^(~|\.{1,2}\/|\/|\$HOME)/.test(word) || /^[\w.-]+\/[\w./-]+$/.test(word)) {
+      tokens.push({ from: start, to, type: "path" });
+    }
+  }
+  return tokens;
+}
+
+function isShellContinuation(line) {
+  return /\\\s*$/.test(line.replace(/\s+#.*$/, ""));
+}
+
+function bannerRadius(corners, px) {
+  const r = `${Number(px) || 0}px`;
+  if (corners === "top") return `${r} ${r} 0 0`;
+  if (corners === "bottom") return `0 0 ${r} ${r}`;
+  if (corners === "none") return "0";
+  return r;
+}
+
+const BANNER_CORNER_CHOICES = { all: "All corners", top: "Top only", bottom: "Bottom only", none: "Square" };
+
 const DEFAULT_SETTINGS = {
   // banner fields
   // Preferred primary field is `cover` (matches your vault convention).
@@ -210,6 +279,7 @@ const DEFAULT_SETTINGS = {
   dim: 0.18,
   fadeBottom: true,
   borderRadiusPx: 18,
+  bannerCorners: "all",
   objectFit: "cover", // cover|contain|fill|scale-down|none
 
   // behavior
@@ -838,6 +908,22 @@ class CoverBannerDashboardView extends ItemView {
       await this.plugin.saveSettings();
     });
 
+    const cornersRow = el.createDiv({ cls: "cover-banner-dashboard__row" });
+    cornersRow.createDiv({ text: "Rounded corners", cls: "cover-banner-dashboard__label" });
+    const cornersSelect = cornersRow.createEl("select");
+    for (const [value, label] of Object.entries(BANNER_CORNER_CHOICES)) {
+      const option = cornersRow.ownerDocument.createElement("option");
+      option.value = value;
+      option.text = label;
+      option.selected = (this.plugin.settings.bannerCorners || "all") === value;
+      cornersSelect.appendChild(option);
+    }
+    cornersSelect.addEventListener("change", async () => {
+      this.plugin.settings.bannerCorners = cornersSelect.value;
+      await this.plugin.saveSettings();
+      this.plugin.requestRefresh();
+    });
+
     addRange("Radius", 0, 40, 1, () => this.plugin.settings.borderRadiusPx, async (n) => {
       this.plugin.settings.borderRadiusPx = Math.round(n);
       await this.plugin.saveSettings();
@@ -1132,6 +1218,8 @@ module.exports = class CoverBannerPlugin extends Plugin {
     this.registerInterval(setInterval(() => {
       if (this.settings.autoUpdateEnabled) void this.checkForUpdates();
     }, 6 * 60 * 60 * 1000));
+    this.registerShellHighlighting();
+    this.addCommand({ id: "toggle-properties", name: "Hide or show properties", callback: () => this.toggleProperties() });
     this.addCommand({ id: "check-for-updates", name: "Check for plugin updates", callback: () => this.checkForUpdates(true) });
 
     // Parallax bookkeeping (view-content el -> { banner, onScroll })
@@ -1530,6 +1618,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     root.style.setProperty("--cover-banner-content-font", getContentFontStack(this.settings.contentFont));
     root.style.setProperty("--cover-banner-code-font", getCodeFontStack(this.settings.codeFont));
     root.style.setProperty("--cover-banner-font-size", `${normalizeFontSize(this.settings.contentFontSize)}px`);
+    if (this.settings.enhancedMarkdown) this.decorateShellBlocks(root);
     if (this.settings.enhancedMarkdown && this.settings.formatAiChats) {
       this.decorateAiChatBlocks(root);
     } else {
@@ -1551,8 +1640,9 @@ module.exports = class CoverBannerPlugin extends Plugin {
     const fm = this.getFrontmatterSafe(file);
     const rawValue = this.getBannerValueFromFrontmatter(fm) || normalizeFieldValue(this.settings.defaultBanner);
     const src = this.resolveBannerValueToSrc(file, rawValue);
-    const renderKey = JSON.stringify([file.path, src, this.getFaviconValueFromFrontmatter(fm),
-      ...["heightPx", "dim", "borderRadiusPx", "objectFit", "fadeBottom", "pinBanner",
+    // Reading view and Live Preview scroll separately, so each needs its own reserved space.
+    const renderKey = JSON.stringify([file.path, src, view.getMode?.(), this.getFaviconValueFromFrontmatter(fm),
+      ...["heightPx", "dim", "borderRadiusPx", "bannerCorners", "hideProperties", "objectFit", "fadeBottom", "pinBanner",
         "showBannerButtons", "parallaxEnabled", "parallaxStrength", "defaultFavicon"].map(key => this.settings[key])]);
     viewContent.querySelectorAll(".cover-banner__properties-hidden").forEach(el => {
       el.classList.toggle("cover-banner__properties-hidden", !!this.settings.hideProperties);
@@ -1582,16 +1672,18 @@ module.exports = class CoverBannerPlugin extends Plugin {
 
     viewContent.querySelectorAll(
       ".metadata-container, .metadata-properties, .markdown-properties, [data-type=\"properties\"]"
-    ).forEach((props) => {
-      props.classList.toggle("cover-banner__properties-hidden", !!this.settings.hideProperties);
+    ).forEach((el) => {
+      el.classList.toggle("cover-banner__properties-hidden", !!this.settings.hideProperties);
     });
+    // The banner is inserted above the properties block.
+    const props = viewContent.querySelector(".metadata-container, .markdown-properties");
 
     const banner = document.createElement("div");
     banner.className = "cover-banner";
     banner._renderKey = renderKey;
     banner.style.setProperty("--cover-banner-height", `${this.settings.heightPx}px`);
     banner.style.setProperty("--cover-banner-dim", String(this.settings.dim));
-    banner.style.setProperty("--cover-banner-radius", `${this.settings.borderRadiusPx}px`);
+    banner.style.setProperty("--cover-banner-radius", bannerRadius(this.settings.bannerCorners, this.settings.borderRadiusPx));
     banner.style.setProperty("--cover-banner-fit", this.settings.objectFit || "cover");
     banner.toggleAttribute("data-fade", !!this.settings.fadeBottom);
     banner.classList.toggle("cover-banner--pinned", isPinned);
@@ -1691,6 +1783,10 @@ module.exports = class CoverBannerPlugin extends Plugin {
           this.refreshAllViewBanners();
           this.refreshDashboard();
         })
+      );
+
+      actions.appendChild(
+        mkAction(this.settings.hideProperties ? "eye" : "eye-off", this.settings.hideProperties ? "Show properties" : "Hide properties", () => this.toggleProperties())
       );
 
       actions.appendChild(
@@ -1910,6 +2006,94 @@ module.exports = class CoverBannerPlugin extends Plugin {
     await this.setFrontmatterPrimary(file, `[[${path}]]`);
     if (createEmptyOnFail) new Notice("No matching photo found; applied an offline landscape banner.");
     return true;
+  }
+
+  async toggleProperties() {
+    this.settings.hideProperties = !this.settings.hideProperties;
+    await this.saveSettings();
+    this.requestRefresh();
+  }
+
+  // Reading view: colour commands, flags and paths inside the highlighter's plain text.
+  decorateShellBlocks(root) {
+    for (const code of root.querySelectorAll(".markdown-preview-view pre code[class*='language-']")) {
+      const language = [...code.classList].find((c) => c.startsWith("language-"))?.slice(9);
+      if (!isShellLanguage(language) || code.querySelector(".cb-sh")) continue;
+      const ranges = [];
+      let offset = 0;
+      let continued = false;
+      for (const line of code.textContent.split("\n")) {
+        for (const t of shellTokens(line, continued)) ranges.push({ from: offset + t.from, to: offset + t.to, type: t.type });
+        continued = isShellContinuation(line);
+        offset += line.length + 1;
+      }
+      const walker = code.ownerDocument.createTreeWalker(code, NodeFilter.SHOW_TEXT);
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+      let at = 0;
+      for (const node of nodes) {
+        const start = at;
+        const end = at + node.textContent.length;
+        at = end;
+        const parts = ranges.filter((r) => r.from < end && r.to > start);
+        if (!parts.length) continue;
+        const text = node.textContent;
+        const frag = code.ownerDocument.createDocumentFragment();
+        let cursor = start;
+        for (const r of parts) {
+          const from = Math.max(r.from, start);
+          const to = Math.min(r.to, end);
+          if (from > cursor) frag.append(text.slice(cursor - start, from - start));
+          const span = code.ownerDocument.createElement("span");
+          span.className = `cb-sh cb-sh-${r.type}`;
+          span.textContent = text.slice(from - start, to - start);
+          frag.append(span);
+          cursor = to;
+        }
+        if (cursor < end) frag.append(text.slice(cursor - start));
+        node.replaceWith(frag);
+      }
+    }
+  }
+
+  // Live Preview: the same colours through an editor decoration, which leaves the note unchanged.
+  registerShellHighlighting() {
+    if (typeof this.registerEditorExtension !== "function") return;
+    let ViewPlugin, Decoration, RangeSetBuilder;
+    try {
+      ({ ViewPlugin, Decoration } = require("@codemirror/view"));
+      ({ RangeSetBuilder } = require("@codemirror/state"));
+    } catch { return; }
+    if (!ViewPlugin || !Decoration || !RangeSetBuilder) return;
+    const marks = {};
+    for (const type of ["cmd", "flag", "path"]) marks[type] = Decoration.mark({ class: `cb-sh cb-sh-${type}` });
+    const build = (doc) => {
+      const builder = new RangeSetBuilder();
+      let fence = null;
+      let inShell = false;
+      let continued = false;
+      for (let n = 1; n <= doc.lines; n++) {
+        const line = doc.line(n);
+        const open = /^\s*(`{3,}|~{3,})\s*([^\s`]*)/.exec(line.text);
+        if (!fence && open) {
+          fence = open[1];
+          inShell = isShellLanguage(open[2]);
+          continued = false;
+          continue;
+        }
+        if (fence) {
+          if (line.text.trim().startsWith(fence) && !line.text.trim().replace(/[`~]/g, "")) { fence = null; inShell = false; continue; }
+          if (!inShell) continue;
+          for (const t of shellTokens(line.text, continued)) builder.add(line.from + t.from, line.from + t.to, marks[t.type]);
+          continued = isShellContinuation(line.text);
+        }
+      }
+      return builder.finish();
+    };
+    this.registerEditorExtension(ViewPlugin.fromClass(class {
+      constructor(view) { this.decorations = build(view.state.doc); }
+      update(update) { if (update.docChanged) this.decorations = build(update.state.doc); }
+    }, { decorations: (v) => v.decorations }));
   }
 
   async writeBuiltinCover(cover) {
@@ -2192,8 +2376,21 @@ class CoverBannerSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
+      .setName("Rounded corners")
+      .setDesc("Which corners of the banner are rounded.")
+      .addDropdown((d) => {
+        for (const [value, label] of Object.entries(BANNER_CORNER_CHOICES)) d.addOption(value, label);
+        d.setValue(BANNER_CORNER_CHOICES[this.plugin.settings.bannerCorners] ? this.plugin.settings.bannerCorners : "all");
+        d.onChange(async (value) => {
+          this.plugin.settings.bannerCorners = value;
+          await this.plugin.saveSettings();
+          this.plugin.requestRefresh();
+        });
+      });
+
+    new Setting(containerEl)
       .setName("Hide inline properties")
-      .setDesc("Hide the rendered properties block beneath the banner without removing its frontmatter data.")
+      .setDesc("Hide properties and raw frontmatter in the note without removing the data. Also available as the Hide or show properties command and a banner button.")
       .addToggle((t) =>
         t.setValue(!!this.plugin.settings.hideProperties).onChange(async (v) => {
           this.plugin.settings.hideProperties = !!v;

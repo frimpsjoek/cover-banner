@@ -11,9 +11,10 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 - URL- and book-based automatic banner selection
 - Built-in covers that need no API key or network, and an optional Pexels image search
 - Emoji, Iconify, favicon, and local-image note icons
-- Parallax motion, sticky banners, height, dimming, radius, and fit controls
-- Hideable properties and note titles
+- Parallax motion, sticky banners, height, dimming, radius, choice of rounded corners, and fit controls
+- Hideable properties, raw frontmatter, and note titles, with a command and banner button to hide or show properties
 - Enhanced styling for Markdown, code, JSON, JSONL, LaTeX, and AI transcripts
+- Clearer shell code: commands, flags, and paths are coloured in Reading view and Live Preview
 - Content font presets for reading, technical notes, and long-form writing
 - Reading templates for balanced, bookish, focused, and technical notes
 - A dashboard for per-note and global settings

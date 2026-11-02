@@ -657,6 +657,8 @@
 
 /* LaTeX/math blocks are given breathing room and safe horizontal scrolling. */
 .cover-banner--enhanced-markdown .markdown-preview-view :is(.math-block, .math.math-block) {
+  /* A border on an inline span wrapped around a block equation splits into fragments. */
+  display: block;
   margin-block: calc(var(--cb-content-gap) * 1.15);
   padding: 1rem 1.15rem;
   overflow-x: auto;
@@ -791,6 +793,38 @@
   .cover-banner-dashboard button, .cover-banner-dashboard select { min-height: 44px; white-space: normal; }
   .cover-banner__actions { flex-wrap: wrap; max-width: calc(100% - 24px); }
   .cover-banner-picker__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Code stands apart from prose in every theme, in both views. */
+.cover-banner--enhanced-markdown :is(.markdown-preview-view, .markdown-source-view) {
+  --code-background: color-mix(in srgb, var(--text-normal) 7%, var(--background-primary));
+}
+.cover-banner--enhanced-markdown .markdown-preview-view :is(pre, .cm-preview-code-block) {
+  background: var(--code-background);
+  border-left: 3px solid var(--text-accent);
+  overflow-x: auto;
+}
+.cover-banner--enhanced-markdown .markdown-preview-view pre > code {
+  /* Wrapping breaks the column alignment of input decks and comments. */
+  white-space: pre;
+  line-height: 1.5;
+}
+.cover-banner--enhanced-markdown .markdown-source-view .cm-line.HyperMD-codeblock {
+  background: var(--code-background);
+  box-shadow: inset 3px 0 0 var(--text-accent);
+}
+.cover-banner--enhanced-markdown .cb-sh-cmd,
+.cover-banner--enhanced-markdown .cb-sh-cmd * { color: var(--text-accent) !important; font-weight: 600; }
+.cover-banner--enhanced-markdown .cb-sh-flag,
+.cover-banner--enhanced-markdown .cb-sh-flag * { color: var(--color-cyan) !important; }
+.cover-banner--enhanced-markdown .cb-sh-path,
+.cover-banner--enhanced-markdown .cb-sh-path * { color: var(--color-green) !important; }
+
+/* Raw frontmatter appears when it is not valid YAML or in Source mode. */
+.cover-banner--hide-properties .markdown-source-view .cm-line:has(.cm-hmd-frontmatter),
+.cover-banner--hide-properties .markdown-source-view .cm-line.HyperMD-frontmatter,
+.cover-banner--hide-properties .markdown-preview-view :is(.frontmatter, .frontmatter-container) {
+  display: none !important;
 }
 
 /* Bundled OFL fonts work offline on every device. */
