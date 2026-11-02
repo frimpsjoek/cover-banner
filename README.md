@@ -9,7 +9,7 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 - Cinematic cover banners with a natural bottom fade
 - Larger banner controls that appear on hover
 - URL- and book-based automatic banner selection
-- Optional Pexels image picker
+- Built-in covers that need no API key or network, and an optional Pexels image search
 - Emoji, Iconify, favicon, and local-image note icons
 - Parallax motion, sticky banners, height, dimming, radius, and fit controls
 - Hideable properties and note titles
@@ -64,7 +64,7 @@ Downloaded banners are saved in `.attachments/banners/` by default.
 
 ## Browse photo sites without a key
 
-Open **Pick a banner** to browse Pexels, Pixabay, or Unsplash in your browser. Sign in on the provider website if needed, then paste a direct image URL into **Use image**. This sets a remote banner and requires network access to display it; it does not import your account or collections. Pexels API search remains available with an existing key. Pixabay and Unsplash key fields are reserved for future integrations; entering them does not currently enable in-plugin search.
+Open **Pick a banner** to choose a built-in cover, which needs no API key or network. To use your own photos, add a Pexels API key to search from the picker, or browse Pexels, Pixabay, or Unsplash in your browser. Sign in on the provider website if needed, then paste a direct image URL into **Use image**. This sets a remote banner and requires network access to display it; it does not import your account or collections. Pexels API search remains available with an existing key. Pixabay and Unsplash key fields are reserved for future integrations; entering them does not currently enable in-plugin search.
 
 Automatic login is not included. Unsplash requires an enabled parent application for its dynamic registration flow. Pexels and Pixabay's documented search APIs require keys.
 
@@ -146,7 +146,7 @@ with any content font preset.
 
 - **Cinematic Covers: Open dashboard**
 - **Cinematic Covers: Auto-set banner (URL/Book)**
-- **Cinematic Covers: Pick banner from Pexels…**
+- **Cinematic Covers: Pick a banner…**
 - **Cinematic Covers: Clear invalid banner field**
 
 You can also open the dashboard from the Cinematic Covers ribbon icon.
@@ -155,7 +155,7 @@ You can also open the dashboard from the Cinematic Covers ribbon icon.
 
 API keys are entered locally in plugin settings and are not included in the plugin release. The published repository does not contain your `data.json` settings file.
 
-Pexels and Pixabay are optional. You can use local images, URLs, Google Books, and the default banner without configuring an image-provider key.
+Pexels and Pixabay are optional. You can use built-in covers, local images, URLs, Google Books, and the default banner without configuring an image-provider key. If the default photo cannot load, a built-in cover is shown instead.
 
 ## Image performance
 

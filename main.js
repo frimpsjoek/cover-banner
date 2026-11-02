@@ -30,6 +30,21 @@ const ICON_IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|bmp|tiff?|svg|ico)$/i;
 const DEFAULT_CINEMATIC_BANNER =
   "https://images.unsplash.com/photo-1486854561807-38fc02359493?auto=format&fit=crop&w=2400&q=82";
 
+// Built-in covers need no network, API key or image licence: they are drawn as SVG.
+const BUILTIN_COVERS = [
+  {"id": "dawn", "label": "Dawn", "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"600\" viewBox=\"0 0 1600 600\" preserveAspectRatio=\"xMidYMid slice\"><defs><linearGradient id=\"s\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#3d3a6b\"/><stop offset=\"0.45\" stop-color=\"#c9727a\"/><stop offset=\"0.8\" stop-color=\"#f4b183\"/><stop offset=\"1\" stop-color=\"#fbd9a5\"/></linearGradient></defs><path fill=\"url(#s)\" d=\"M0 0h1600v600H0z\"/><circle cx=\"1090\" cy=\"330\" r=\"78\" fill=\"#fff0c9\"/><path fill=\"#8a5f86\" d=\"M0 390 210 270l190 110 240-170 260 180 230-130 250 120 220-110v330H0z\"/><path fill=\"#5a4470\" d=\"M0 470 260 340l220 130 300-160 280 170 250-110 290 120v110H0z\"/><path fill=\"#2f2a4d\" d=\"M0 540 340 430l300 90 330-90 330 100 300-60v130H0z\"/></svg>"},
+  {"id": "ocean", "label": "Ocean", "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"600\" viewBox=\"0 0 1600 600\" preserveAspectRatio=\"xMidYMid slice\"><defs><linearGradient id=\"s\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#0d2746\"/><stop offset=\"0.55\" stop-color=\"#2c6a8f\"/><stop offset=\"1\" stop-color=\"#a9d3d6\"/></linearGradient><linearGradient id=\"w\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#1d5a78\"/><stop offset=\"1\" stop-color=\"#071a2e\"/></linearGradient></defs><path fill=\"url(#s)\" d=\"M0 0h1600v360H0z\"/><circle cx=\"430\" cy=\"170\" r=\"62\" fill=\"#f2f0dc\"/><path fill=\"url(#w)\" d=\"M0 360h1600v240H0z\"/><path fill=\"#f2f0dc\" opacity=\".55\" d=\"M380 368h100v6H380zM356 392h148v6H356zM392 420h76v7h-76zM340 452h180v7H340zM376 490h108v8H376zM350 536h160v9H350z\"/><path fill=\"none\" stroke=\"#7fb7c6\" stroke-opacity=\".35\" stroke-width=\"3\" d=\"M0 410q200-20 400 0t400 0 400 0 400 0M0 470q200-22 400 0t400 0 400 0 400 0M0 540q200-24 400 0t400 0 400 0 400 0\"/></svg>"},
+  {"id": "forest", "label": "Forest", "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"600\" viewBox=\"0 0 1600 600\" preserveAspectRatio=\"xMidYMid slice\"><defs><linearGradient id=\"s\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#c9dcc9\"/><stop offset=\"0.6\" stop-color=\"#e6ead2\"/><stop offset=\"1\" stop-color=\"#b9cfb4\"/></linearGradient></defs><path fill=\"url(#s)\" d=\"M0 0h1600v600H0z\"/><path fill=\"#8fae97\" d=\"M0 330L62 310L124 331L186 293L248 330L310 299L372 333L434 306L496 332L558 289L620 331L682 295L744 330L806 301L868 333L930 308L992 332L1054 291L1116 331L1178 297L1240 333L1302 303L1364 332L1426 310L1488 331L1550 293L1612 330V600H0z\"/><path fill=\"#5c8570\" d=\"M0 420L72 360L144 426L216 372L288 424L360 383L432 422L504 353L576 421L648 364L720 426L792 375L864 424L936 346L1008 422L1080 357L1152 420L1224 368L1296 425L1368 379L1440 423L1512 349L1584 421L1656 360V600H0z\"/><path fill=\"#2c4f43\" d=\"M0 500L90 437L180 505L270 391L360 502L450 408L540 510L630 425L720 507L810 442L900 504L990 396L1080 501L1170 414L1260 509L1350 431L1440 506L1530 385L1620 503V600H0z\"/></svg>"},
+  {"id": "dunes", "label": "Dunes", "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"600\" viewBox=\"0 0 1600 600\" preserveAspectRatio=\"xMidYMid slice\"><defs><linearGradient id=\"s\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#f7dfb4\"/><stop offset=\"0.6\" stop-color=\"#f0b98a\"/><stop offset=\"1\" stop-color=\"#e0916a\"/></linearGradient></defs><path fill=\"url(#s)\" d=\"M0 0h1600v600H0z\"/><circle cx=\"1240\" cy=\"140\" r=\"58\" fill=\"#fff4d9\"/><path fill=\"#d98e5f\" d=\"M0 380c260-90 480-90 760-10s560 60 840-30v260H0z\"/><path fill=\"#b9663f\" d=\"M0 460c320-120 620-40 880 10s500 10 720-70v200H0z\"/><path fill=\"#7e3f2c\" d=\"M0 540c360-70 700-40 980-10s460-10 620-50v120H0z\"/></svg>"},
+  {"id": "night", "label": "Night", "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"600\" viewBox=\"0 0 1600 600\" preserveAspectRatio=\"xMidYMid slice\"><defs><linearGradient id=\"s\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#060a22\"/><stop offset=\"0.65\" stop-color=\"#1b2a5c\"/><stop offset=\"1\" stop-color=\"#46508a\"/></linearGradient></defs><path fill=\"url(#s)\" d=\"M0 0h1600v600H0z\"/><g fill=\"#f4f1dc\"><circle cx=\"90\" cy=\"70\" r=\"2\"/><circle cx=\"210\" cy=\"160\" r=\"1.5\"/><circle cx=\"330\" cy=\"50\" r=\"2.2\"/><circle cx=\"470\" cy=\"120\" r=\"1.4\"/><circle cx=\"600\" cy=\"60\" r=\"1.8\"/><circle cx=\"720\" cy=\"190\" r=\"1.3\"/><circle cx=\"840\" cy=\"80\" r=\"2.3\"/><circle cx=\"980\" cy=\"140\" r=\"1.5\"/><circle cx=\"1100\" cy=\"50\" r=\"1.9\"/><circle cx=\"1240\" cy=\"170\" r=\"1.4\"/><circle cx=\"1370\" cy=\"70\" r=\"2.1\"/><circle cx=\"1510\" cy=\"130\" r=\"1.6\"/><circle cx=\"150\" cy=\"240\" r=\"1.3\"/><circle cx=\"420\" cy=\"260\" r=\"1.6\"/><circle cx=\"660\" cy=\"290\" r=\"1.2\"/><circle cx=\"1040\" cy=\"270\" r=\"1.5\"/><circle cx=\"1300\" cy=\"280\" r=\"1.3\"/><circle cx=\"1560\" cy=\"250\" r=\"1.4\"/></g><path fill=\"#f4f1dc\" d=\"M1195 76a46 46 0 1 0 34 62 38 38 0 0 1-34-62z\"/><path fill=\"#141c44\" d=\"m0 430 240-110 200 90 280-130 260 130 240-90 380 110v170H0z\"/><path fill=\"#090e28\" d=\"m0 520 320-80 280 60 340-90 300 90 360-50v150H0z\"/></svg>"},
+  {"id": "aurora", "label": "Aurora", "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"600\" viewBox=\"0 0 1600 600\" preserveAspectRatio=\"xMidYMid slice\"><defs><linearGradient id=\"s\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#04121c\"/><stop offset=\"1\" stop-color=\"#0b2f3d\"/></linearGradient><filter id=\"b\" x=\"-20%\" y=\"-50%\" width=\"140%\" height=\"200%\"><feGaussianBlur stdDeviation=\"34\"/></filter></defs><path fill=\"url(#s)\" d=\"M0 0h1600v600H0z\"/><g filter=\"url(#b)\" fill=\"none\" stroke-linecap=\"round\"><path stroke=\"#37e2a0\" stroke-opacity=\".75\" stroke-width=\"70\" d=\"M-40 260c300-170 520-40 780-90s480-130 900-20\"/><path stroke=\"#5b8cff\" stroke-opacity=\".5\" stroke-width=\"60\" d=\"M-40 170c340-90 600 30 900-30s460-70 780 10\"/></g><path fill=\"#0a2230\" d=\"m0 450 300-120 240 100 300-140 280 130 240-80 240 90v170H0z\"/><path fill=\"#04101a\" d=\"m0 530 380-80 300 70 320-80 300 80 300-50v130H0z\"/></svg>"},
+  {"id": "slate", "label": "Slate", "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1600\" height=\"600\" viewBox=\"0 0 1600 600\" preserveAspectRatio=\"xMidYMid slice\"><defs><linearGradient id=\"s\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#2b313b\"/><stop offset=\"1\" stop-color=\"#454e5c\"/></linearGradient></defs><path fill=\"url(#s)\" d=\"M0 0h1600v600H0z\"/><path fill=\"none\" stroke=\"#fff\" stroke-opacity=\".07\" stroke-width=\"2\" d=\"M0 460c300-110 560-60 820-20s520 20 780-70M0 400c300-110 560-60 820-20s520 20 780-70M0 340c300-110 560-60 820-20s520 20 780-70M0 280c300-110 560-60 820-20s520 20 780-70M0 220c300-110 560-60 820-20s520 20 780-70M0 160c300-110 560-60 820-20s520 20 780-70\"/></svg>"},
+];
+
+function svgDataUri(svg) {
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
 const VIEW_TYPE = "cover-banner-dashboard";
 const TOOL_ICON = "obsidian-banners-landscape";
 const TOOL_ICON_SVG = '<g fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="16" width="84" height="68" rx="10"/><path d="m10 65 24-25 22 25 15-15 19 20"/><circle cx="70" cy="35" r="6"/></g>';
@@ -379,6 +394,8 @@ class PexelsPickerModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", { text: "Pick a banner" });
+    this.renderBuiltinCovers(contentEl);
+    contentEl.createEl("h3", { text: "Use your own image" });
     contentEl.createEl("p", { text: "Browse photo websites without an API key. Sign in on their website if needed, then paste a direct image URL below. Photo page links are not image URLs." });
     const sites = contentEl.createDiv({ cls: "cover-banner-picker__sites" });
     for (const [name, url] of [["Pexels", "https://www.pexels.com/"], ["Pixabay", "https://pixabay.com/"], ["Unsplash", "https://unsplash.com/"]]) {
@@ -419,7 +436,7 @@ class PexelsPickerModal extends Modal {
 
       const key = (this.plugin.settings.pexelsApiKey || "").trim();
       if (!key) {
-        new Notice("Cinematic Covers: set Pexels API key in plugin settings");
+        grid.createDiv({ text: "Add a Pexels API key in settings to search photos. The built-in covers above need no key.", cls: "cover-banner-picker__status" });
         return;
       }
 
@@ -484,6 +501,28 @@ class PexelsPickerModal extends Modal {
     });
 
     if (this.plugin.settings.pexelsApiKey?.trim()) void runSearch();
+  }
+
+  renderBuiltinCovers(parent) {
+    parent.createEl("h3", { text: "Built-in covers" });
+    const grid = parent.createDiv({ cls: "cover-banner-picker__grid" });
+    for (const cover of BUILTIN_COVERS) {
+      const item = grid.createDiv({ cls: "cover-banner-picker__item" });
+      item.createEl("img", { attr: { src: svgDataUri(cover.svg), alt: cover.label } });
+      item.createDiv({ text: cover.label, cls: "cover-banner-picker__credit" });
+      item.addEventListener("click", async () => {
+        item.addClass("is-loading");
+        try {
+          const path = await this.plugin.writeBuiltinCover(cover);
+          await this.plugin.setFrontmatterPrimary(this.file, `[[${path}]]`);
+          this.plugin.requestRefresh();
+          this.close();
+        } catch {
+          item.removeClass("is-loading");
+          new Notice("Could not save this banner. Try again.");
+        }
+      });
+    }
   }
 
   onClose() {
@@ -1573,6 +1612,9 @@ module.exports = class CoverBannerPlugin extends Plugin {
       img.alt = "";
       img.decoding = "async";
       img.setAttribute("fetchpriority", "high");
+      // Only a default that cannot load (offline, blocked) is replaced. A broken cover
+      // the user chose stays visible as broken so they can fix it.
+      if (!this.getBannerValueFromFrontmatter(fm)) img.addEventListener("error", () => { img.src = svgDataUri(BUILTIN_COVERS[0].svg); }, { once: true });
       img.src = src;
       banner.appendChild(img);
       imgEl = img;
@@ -1605,7 +1647,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
       );
 
       actions.appendChild(
-        mkAction("image", "Pick banner from Pexels", () => {
+        mkAction("image", "Pick a banner", () => {
           const f = this.getCurrentMarkdownFile();
           if (!looksLikeMarkdownFile(f)) {
             new Notice("Cinematic Covers: no active note");
@@ -1868,6 +1910,13 @@ module.exports = class CoverBannerPlugin extends Plugin {
     await this.setFrontmatterPrimary(file, `[[${path}]]`);
     if (createEmptyOnFail) new Notice("No matching photo found; applied an offline landscape banner.");
     return true;
+  }
+
+  async writeBuiltinCover(cover) {
+    await ensureFolder(this.app, this.settings.bannerFolder);
+    const path = `${this.settings.bannerFolder}/builtin-${cover.id}.svg`;
+    if (!await this.app.vault.adapter.exists(path)) await this.app.vault.adapter.write(path, cover.svg);
+    return path;
   }
 
   async ensurePrimaryFieldExists(file) {
