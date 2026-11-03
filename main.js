@@ -235,6 +235,7 @@ function shellTokens(line, continued = false) {
     if (/^\d*[<>]/.test(word)) { redirect = !/[<>]&?\d+$/.test(word) && /[<>]$/.test(word); continue; }
     if (redirect) { redirect = false; continue; }
     if (expectCommand && /^[A-Za-z_]\w*=/.test(word)) continue;
+    if (word === "!") continue;
     if (SHELL_KEYWORDS.has(word)) { expectCommand = SHELL_COMMAND_AFTER.has(word); continue; }
     const to = i;
     if (expectCommand) {
@@ -251,6 +252,137 @@ function shellTokens(line, continued = false) {
 
 function isShellContinuation(line) {
   return /\\\s*$/.test(line.replace(/\s+#.*$/, ""));
+}
+
+// The delimiter a line opens a heredoc with. Quoted text is dropped first, except a quoted delimiter.
+function heredocDelimiter(line) {
+  const code = line
+    .replace(/(["'])[^"']*\1/g, (m, q, at, all) => (/<<-?\s*$/.test(all.slice(0, at)) ? m : ""))
+    .replace(/(^|\s)#.*$/, "");
+  const m = /(?:^|[^<])<<-?\s*(?:'(\w+)'|"(\w+)"|\\?([A-Za-z_]\w*))/.exec(code);
+  return m ? m[1] || m[2] || m[3] : null;
+}
+
+// Tokens for each successive line of one code block. Heredoc bodies are data, so they stay plain.
+function shellLineScanner() {
+  let continued = false;
+  let heredoc = null;
+  return (line) => {
+    if (heredoc) {
+      if (line.trim() === heredoc) heredoc = null;
+      return [];
+    }
+    const tokens = shellTokens(line, continued);
+    continued = isShellContinuation(line);
+    heredoc = heredocDelimiter(line);
+    return tokens;
+  };
+}
+
+// Where a ! or a line-start # comment begins, ignoring quoted text. -1 when the line has none.
+function deckCommentStart(line) {
+  let quote = null;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (quote) { if (ch === quote) quote = null; continue; }
+    if (ch === '"' || ch === "'") { quote = ch; continue; }
+    if (ch === "!" && line[i + 1] !== "=" && (i === 0 || /\s/.test(line[i - 1]))) return i;
+    if ((ch === "#" || ch === "*") && !line.slice(0, i).trim()) return i;
+  }
+  return -1;
+}
+
+function deckLineTokens(line) {
+  const comment = deckCommentStart(line);
+  const code = comment < 0 ? line : line.slice(0, comment);
+  const tokens = [];
+  const free = (from, to) => tokens.every((t) => to <= t.from || from >= t.to);
+  const lead = code.length - code.trimStart().length;
+  const word = /^(&?[A-Za-z_][\w-]*)\s*$/.exec(code.slice(lead));
+  const key = /^([A-Za-z_][\w.%()-]*)\s*=/.exec(code.slice(lead));
+  const card = /^[A-Z][A-Z0-9_]+(?=\s)/.exec(code.slice(lead));
+  if (word) tokens.push({ from: lead, to: lead + word[1].length, type: "keyword" });
+  else if (key) tokens.push({ from: lead, to: lead + key[1].length, type: "key" });
+  else if (card) tokens.push({ from: lead, to: lead + card[0].length, type: "keyword" });
+  for (const m of code.matchAll(/(^|\s)([A-Z][A-Z0-9_]*)\s*=/g)) {
+    const from = m.index + m[1].length;
+    if (free(from, from + m[2].length)) tokens.push({ from, to: from + m[2].length, type: "key" });
+  }
+  for (const m of code.matchAll(/"[^"]*"|'[^']*'/g)) tokens.push({ from: m.index, to: m.index + m[0].length, type: "string" });
+  for (const m of code.matchAll(/[-+]?(?:\d+\.?\d*|\.\d+)(?:[eEdD][-+]?\d+)?/g)) {
+    const from = m.index;
+    const to = from + m[0].length;
+    if (/[\w./-]/.test(code[from - 1] || " ") || /[\w/-]/.test(code[to] || " ") || !free(from, to)) continue;
+    tokens.push({ from, to, type: "number" });
+  }
+  if (comment >= 0) tokens.push({ from: comment, to: line.length, type: "comment" });
+  return tokens.sort((a, b) => a.from - b.from);
+}
+
+const DECK_LANGUAGES = new Set(["", "text", "txt", "plaintext"]);
+
+// Most unlabelled blocks are prose and program output, so a sentence-like line rules a block out.
+function isSentenceLike(line) {
+  const comment = deckCommentStart(line);
+  const words = (comment < 0 ? line : line.slice(0, comment)).replace(/\s#.*$/, "").trim().split(/\s+/);
+  return words.filter((w) => /^[A-Za-z][a-z'-]*[,.:;]?$/.test(w)).length >= 4;
+}
+
+// An input deck has a ! comment beside other lines, a namelist closed by a lone slash, or
+// KEY = value on every line.
+function isInputDeck(lines) {
+  const body = lines.filter((l) => l.trim());
+  if (body.some((l) => /^\s*&[A-Za-z_]\w*\s*$/.test(l)) && body.some((l) => /^\s*\/\s*$/.test(l))) return true;
+  const code = body.filter((l) => !l.slice(0, Math.max(deckCommentStart(l), 0)).trim() ? deckCommentStart(l) < 0 : true);
+  // Real decks carry the odd annotation line, so a few sentence-like lines are allowed.
+  const assigned = code.filter((l) => /^\s*[A-Z][A-Z0-9_]*\s*=\s/.test(l)).length;
+  if (assigned >= 2 && assigned >= 0.6 * code.length) return true;
+  const hasBang = (l) => { const at = deckCommentStart(l); return at >= 0 && l[at] === "!"; };
+  return body.some(hasBang) && code.length > 0 && body.filter(isSentenceLike).length <= 0.25 * body.length;
+}
+
+// A file listing: every line starts with a path. A description may follow after a wide gap.
+const LISTED_PATH = /^(?:~|\.{0,2}\/|[\w.*-]+\/)[^\s:]*$/;
+
+function isPathListing(lines) {
+  const body = lines.filter((l) => l.trim());
+  return body.length >= 2 && body.every((l) => LISTED_PATH.test(l.trim().split(/\s+/)[0].replace(/,$/, "")));
+}
+
+function pathListingTokens(line) {
+  const tokens = [];
+  for (const m of line.matchAll(/\S+/g)) {
+    const word = m[0].replace(/,$/, "");
+    if (!LISTED_PATH.test(word)) break;
+    tokens.push({ from: m.index, to: m.index + word.length, type: "path" });
+  }
+  const last = tokens.at(-1);
+  if (last) {
+    const rest = /^[,\s]*/.exec(line.slice(last.to))[0].length;
+    if (last.to + rest < line.length) tokens.push({ from: last.to + rest, to: line.length, type: "comment" });
+  }
+  return tokens;
+}
+
+const SHELL_COMMANDS = new Set(["cd", "ls", "git", "ssh", "scp", "rsync", "python", "python3", "uv", "pixi", "pip", "conda", "make", "cmake", "module", "source", "export", "mkdir", "cp", "mv", "rm", "cat", "grep", "sed", "awk", "qsub", "qstat", "sbatch", "squeue", "srun", "salloc", "mpirun", "tar", "curl", "wget", "chmod", "brew", "npm", "node", "gh"]);
+
+// Every line starts with a known command and none reads as a sentence.
+function looksLikeShell(lines) {
+  const body = lines.filter((l) => l.trim() && !l.trimStart().startsWith("#"));
+  return body.length > 0 && !body.some(isSentenceLike) && body.every((l) => SHELL_COMMANDS.has(l.trim().split(/\s+/)[0]));
+}
+
+// Tokens for every line of one code block; the same result drives Reading view and Live Preview.
+function codeBlockTokens(language, lines) {
+  const lang = String(language || "").toLowerCase();
+  const none = () => lines.map(() => []);
+  if (isShellLanguage(lang)) { const next = shellLineScanner(); return lines.map(next); }
+  if (!DECK_LANGUAGES.has(lang)) return none();
+  const body = lines.filter((l) => l.trim());
+  // A pasted terminal command: every line is "! command", which is how agent shells run them.
+  if ((body.length && body.every((l) => /^!\s+\S/.test(l))) || looksLikeShell(lines)) { const next = shellLineScanner(); return lines.map(next); }
+  if (isInputDeck(lines)) return lines.map(deckLineTokens);
+  return isPathListing(lines) ? lines.map(pathListingTokens) : none();
 }
 
 function bannerRadius(corners, px) {
@@ -2016,15 +2148,15 @@ module.exports = class CoverBannerPlugin extends Plugin {
 
   // Reading view: colour commands, flags and paths inside the highlighter's plain text.
   decorateShellBlocks(root) {
-    for (const code of root.querySelectorAll(".markdown-preview-view pre code[class*='language-']")) {
-      const language = [...code.classList].find((c) => c.startsWith("language-"))?.slice(9);
-      if (!isShellLanguage(language) || code.querySelector(".cb-sh")) continue;
+    for (const code of root.querySelectorAll(".markdown-preview-view pre code")) {
+      const language = [...code.classList].find((c) => c.startsWith("language-"))?.slice(9) || "";
+      if (code.querySelector(".cb-sh")) continue;
       const ranges = [];
       let offset = 0;
-      let continued = false;
-      for (const line of code.textContent.split("\n")) {
-        for (const t of shellTokens(line, continued)) ranges.push({ from: offset + t.from, to: offset + t.to, type: t.type });
-        continued = isShellContinuation(line);
+      const lines = code.textContent.split("\n");
+      const tokens = codeBlockTokens(language, lines);
+      for (const [i, line] of lines.entries()) {
+        for (const t of tokens[i]) ranges.push({ from: offset + t.from, to: offset + t.to, type: t.type });
         offset += line.length + 1;
       }
       const walker = code.ownerDocument.createTreeWalker(code, NodeFilter.SHOW_TEXT);
@@ -2066,28 +2198,34 @@ module.exports = class CoverBannerPlugin extends Plugin {
     } catch { return; }
     if (!ViewPlugin || !Decoration || !RangeSetBuilder) return;
     const marks = {};
-    for (const type of ["cmd", "flag", "path"]) marks[type] = Decoration.mark({ class: `cb-sh cb-sh-${type}` });
+    for (const type of ["cmd", "flag", "path", "comment", "keyword", "number", "key", "string"]) marks[type] = Decoration.mark({ class: `cb-sh cb-sh-${type}` });
     const build = (doc) => {
       const builder = new RangeSetBuilder();
       let fence = null;
-      let inShell = false;
-      let continued = false;
+      let language = "";
+      let body = [];
+      const flush = () => {
+        const tokens = codeBlockTokens(language, body.map((line) => line.text));
+        body.forEach((line, i) => {
+          for (const t of tokens[i]) builder.add(line.from + t.from, line.from + t.to, marks[t.type]);
+        });
+        body = [];
+      };
       for (let n = 1; n <= doc.lines; n++) {
         const line = doc.line(n);
         const open = /^\s*(`{3,}|~{3,})\s*([^\s`]*)/.exec(line.text);
-        if (!fence && open) {
-          fence = open[1];
-          inShell = isShellLanguage(open[2]);
-          continued = false;
+        if (!fence) {
+          if (open) { fence = open[1]; language = open[2]; }
           continue;
         }
-        if (fence) {
-          if (line.text.trim().startsWith(fence) && !line.text.trim().replace(/[`~]/g, "")) { fence = null; inShell = false; continue; }
-          if (!inShell) continue;
-          for (const t of shellTokens(line.text, continued)) builder.add(line.from + t.from, line.from + t.to, marks[t.type]);
-          continued = isShellContinuation(line.text);
+        if (line.text.trim().startsWith(fence) && !line.text.trim().replace(/[`~]/g, "")) {
+          flush();
+          fence = null;
+          continue;
         }
+        body.push(line);
       }
+      if (fence) flush();
       return builder.finish();
     };
     this.registerEditorExtension(ViewPlugin.fromClass(class {

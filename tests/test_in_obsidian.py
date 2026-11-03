@@ -49,6 +49,44 @@ mpirun -n 1 ~/QE-740-PDEP-wannier/bin/lwannier.x -i wstat.in \
 conda create -n west python=3.10 -c conda-forge -y
 ```
 
+```bash
+cat > job.pbs <<'EOF'
+#PBS -N test
+heredocbody --flag ~/x
+EOF
+qsub job.pbs
+```
+
+```
+Gamma_hole
+  1.55                 ! core-hole width (eV)
+All_conv               ! also write spectra
+```
+
+```
+The result was great! This output is prose.
+```
+
+```fortran
+! a fortran comment
+program main
+  x = 1.5  ! trailing
+end program
+```
+
+```python
+def add(a, b):
+    return a + b
+```
+
+```json
+{"key": 1}
+```
+
+> A quoted line.
+
+User: a transcript line.
+
 Paragraph after the block.
 
 Inline $\chi_0$ and display:
@@ -91,14 +129,23 @@ SNAPSHOT = """() => {
   const title = [...document.querySelectorAll('.inline-title')].find(vis);
   const bannerBox = banner?.getBoundingClientRect(), titleBox = title?.getBoundingClientRect();
   const math = [...document.querySelectorAll('.math-block')].filter(vis)[0];
-  const commands = ['git', 'cd', './setup.sh', 'source', 'alcf-tokens', 'uvx', 'make', 'mpirun', 'grep', 'conda'];
+  const commands = ['git', 'cd', './setup.sh', 'source', 'alcf-tokens', 'uvx', 'make', 'mpirun', 'grep', 'conda', 'cat', 'qsub'];
   const found = new Set();
   for (const root of els) for (const e of root.querySelectorAll('.cb-sh-cmd')) found.add(e.textContent);
   return {
     missingCommands: commands.filter((c) => !found.has(c)),
+    heredocColoured: ['heredocbody', 'EOF', '--flag'].filter((c) => found.has(c)),
     pct: chars ? Math.round(100 * coloured / chars) : null,
     bgDiff: bs ? Math.abs(grey(bs.backgroundColor) - grey(getComputedStyle(document.body).getPropertyValue('--background-primary').trim() || '#fff')) : null,
-    accentBar: bs ? (parseFloat(bs.borderLeftWidth) >= 2 || bs.boxShadow.includes('inset')) : null,
+    edges: [...document.querySelectorAll('pre, pre > code, blockquote, .math-block, .cover-banner-ai-message, .cm-line')].filter(vis).filter((e) => {
+      const c = getComputedStyle(e), b = getComputedStyle(e, '::before');
+      return parseFloat(c.borderLeftWidth) !== parseFloat(c.borderRightWidth) || c.borderLeftColor !== c.borderRightColor
+        || c.boxShadow.split(/,(?![^(]*\\))/).some((x) => x.includes('inset') && parseFloat(x.replace(/^.*\\)\\s*/, '')) !== 0) || parseFloat(b.borderLeftWidth) > 0;
+    }).map((e) => `${e.tagName}.${String(e.className).slice(0, 40)}`).slice(0, 5),
+    deck: Object.fromEntries(['comment', 'keyword', 'number'].map((t) => [t, [...document.querySelectorAll('.cb-sh-' + t)].filter(vis).map((e) => { const c = e.closest('.cm-line, code'); return [e.textContent, getComputedStyle(e).color !== getComputedStyle(c).color]; })])),
+    fortran: (() => { const c = [...document.querySelectorAll('pre code.language-fortran')].filter(vis)[0]; return c ? c.querySelectorAll('span').length : null; })(),
+    prosePlain: [...document.querySelectorAll('pre code, .cm-line')].filter(vis).filter((e) => e.textContent.includes('output is prose')).every((e) => !e.querySelector('.cb-sh')),
+    shellBold: [...document.querySelectorAll('.cb-sh')].filter(vis).some((e) => parseInt(getComputedStyle(e).fontWeight) > 400),
     whiteSpace: reading[0] ? getComputedStyle(reading[0]).whiteSpace : null,
     bannerBottom: bannerBox?.bottom, titleTop: titleBox?.top,
     radius: banner ? getComputedStyle(banner).borderRadius : null,
@@ -119,6 +166,8 @@ try:
                 break
             except Exception:
                 time.sleep(1)
+        else:
+            raise SystemExit("FAIL could not connect to Obsidian")
         page = None
         for _ in range(60):
             for ctx in browser.contexts:
@@ -131,6 +180,8 @@ try:
             if page:
                 break
             time.sleep(1)
+        if page is None:
+            raise SystemExit("FAIL vault did not open")
         page.on("console", lambda m: errors.append(m.text[:300]) if m.type == "error" else None)
         page.on("pageerror", lambda e: errors.append(str(e)[:300]))
         page.evaluate("app.plugins.setEnable(true)")
@@ -159,6 +210,15 @@ try:
                 await leaf.setViewState(state);
             }""", mode)
             page.wait_for_timeout(1500)
+            # The note is longer than the window; the title check is about the top of the note.
+            # Obsidian restores the old scroll position some time after a mode switch, so wait until it holds.
+            page.wait_for_function("""() => {
+                const panes = [...document.querySelectorAll('.markdown-preview-view, .cm-scroller')];
+                panes.forEach((e) => { e.scrollTop = 0; });
+                window.__cbStable = panes.every((e) => e.scrollTop === 0) ? (window.__cbStable || 0) + 1 : 0;
+                return window.__cbStable >= 5;
+            }""", polling=200, timeout=15000)
+            page.evaluate("window.__cbStable = 0")
 
         for theme, name in (("moonstone", "light"), ("obsidian", "dark")):
             page.evaluate("(t) => app.changeTheme ? app.changeTheme(t) : app.setTheme(t)", theme)
@@ -168,7 +228,16 @@ try:
                 s = page.evaluate(SNAPSHOT)
                 check(not s["missingCommands"], f"{name} {view}: every command name coloured", f"{s['pct']}% of characters, missing {s['missingCommands']}")
                 check(s["bgDiff"] is not None and s["bgDiff"] >= 9, f"{name} {view}: code block separate from page", f"grey difference {s['bgDiff']}")
-                check(s["accentBar"], f"{name} {view}: code block has an accent edge")
+                check(not s["edges"], f"{name} {view}: no accent edge on any block", s["edges"])
+                d = s["deck"]
+                check(any(t == "! core-hole width (eV)" and c for t, c in d["comment"]), f"{name} {view}: ! comment coloured", d["comment"][:3])
+                check(any(t == "Gamma_hole" and c for t, c in d["keyword"]), f"{name} {view}: deck keyword coloured", d["keyword"][:3])
+                check(any(t == "1.55" and c for t, c in d["number"]), f"{name} {view}: deck number coloured", d["number"][:3])
+                check(s["prosePlain"], f"{name} {view}: prose in a code block stays plain")
+                if s["fortran"] is not None:
+                    check(s["fortran"] > 0, f"{name} {view}: fortran block coloured", s["fortran"])
+                check(not s["shellBold"], f"{name} {view}: shell colours are not bold")
+                check(not s["heredocColoured"], f"{name} {view}: heredoc body stays plain", s["heredocColoured"])
                 top, bottom = s["titleTop"], s["bannerBottom"]
                 check(top is not None and bottom is not None and top >= bottom, f"{name} {view}: banner does not cover the title", f"title {top} banner bottom {bottom}")
             page.screenshot(path=str(work / f"code_{name}.png"))
@@ -203,10 +272,16 @@ try:
 
         check(not errors, "no console errors", errors[:3] if errors else "")
 finally:
+    # Wait for the exit: a new run reuses this profile path, and a dying instance would block it.
     try:
         os.killpg(proc.pid, signal.SIGTERM)
+        proc.wait(timeout=20)
     except ProcessLookupError:
         pass
+    except subprocess.TimeoutExpired:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+    time.sleep(2)
 
 print(f"\n{results.count(False)} failure(s) of {len(results)}")
 sys.exit(1 if False in results or not results else 0)

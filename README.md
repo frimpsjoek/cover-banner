@@ -176,7 +176,7 @@ Install 0.5.8 once using the steps below to get the updater. Future releases mus
 
 1. Disable the plugin in Obsidian's Community plugins settings.
 2. Copy the new `main.js`, `styles.css`, and `manifest.json` into your vault's `.obsidian/plugins/cover-banner/` folder, replacing those three files. Keep `data.json` to preserve your settings.
-3. Enable the plugin again. Confirm version **0.6.3** in Community plugins.
+3. Enable the plugin again. Confirm the new version number in Community plugins.
 4. Repeat in each device's vault, or sync the updated plugin files and reload the plugin there.
 
 The plugin folder stays named `cover-banner` even though its display name is Cinematic Covers.

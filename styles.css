@@ -558,8 +558,8 @@
 .cover-banner--enhanced-markdown .markdown-preview-view blockquote {
   margin-block: var(--cb-content-gap);
   padding: 0.8rem 1rem;
-  border-left: 3px solid color-mix(in srgb, var(--text-accent) 62%, transparent);
-  border-radius: 0 10px 10px 0;
+  border: 0;
+  border-radius: 10px;
   background: var(--cb-accent-soft);
   color: var(--text-muted);
 }
@@ -618,15 +618,7 @@
   line-height: 1.62;
 }
 
-/* JSON and JSONL get a quiet editor-like treatment without changing content. */
-.cover-banner--enhanced-markdown .markdown-preview-view pre > code.language-json,
-.cover-banner--enhanced-markdown .markdown-preview-view pre > code.language-jsonl,
-.cover-banner--enhanced-markdown .markdown-preview-view pre > code.language-json-lines {
-  display: block;
-  padding-left: 0.9rem;
-  border-left: 3px solid color-mix(in srgb, var(--color-blue) 70%, var(--text-accent));
-}
-
+/* JSON and JSONL keep their alignment without changing content. */
 .cover-banner--enhanced-markdown .markdown-preview-view pre code.language-json,
 .cover-banner--enhanced-markdown .markdown-preview-view pre code.language-jsonl,
 .cover-banner--enhanced-markdown .markdown-preview-view pre code.language-json-lines {
@@ -663,8 +655,7 @@
   padding: 1rem 1.15rem;
   overflow-x: auto;
   border: 1px solid var(--cb-line);
-  border-left: 3px solid color-mix(in srgb, var(--color-purple) 70%, var(--text-accent));
-  border-radius: 0 12px 12px 0;
+  border-radius: 12px;
   background: var(--cb-surface);
 }
 
@@ -679,8 +670,7 @@
   margin-block: 0.8rem;
   padding: 0.75rem 1rem;
   border: 1px solid var(--cb-line);
-  border-left: 3px solid var(--text-muted);
-  border-radius: 0 12px 12px 0;
+  border-radius: 12px;
   background: var(--cb-surface);
 }
 
@@ -688,26 +678,6 @@
   margin-right: 0.35rem;
   color: var(--text-accent);
   font-weight: 700;
-}
-
-.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-system {
-  border-left-color: var(--color-purple);
-}
-
-.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-developer {
-  border-left-color: var(--color-blue);
-}
-
-.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-user {
-  border-left-color: var(--color-green);
-}
-
-.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-assistant {
-  border-left-color: var(--color-orange);
-}
-
-.cover-banner--enhanced-markdown .markdown-preview-view .cover-banner-ai-tool {
-  border-left-color: var(--color-red);
 }
 
 /* Reading templates ------------------------------------------------------ */
@@ -795,13 +765,13 @@
   .cover-banner-picker__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Code stands apart from prose in every theme, in both views. */
+/* Code stands apart from prose by its background alone, in every theme and both views. */
 .cover-banner--enhanced-markdown :is(.markdown-preview-view, .markdown-source-view) {
   --code-background: color-mix(in srgb, var(--text-normal) 7%, var(--background-primary));
+  --blockquote-border-thickness: 0px;
 }
 .cover-banner--enhanced-markdown .markdown-preview-view :is(pre, .cm-preview-code-block) {
   background: var(--code-background);
-  border-left: 3px solid var(--text-accent);
   overflow-x: auto;
 }
 .cover-banner--enhanced-markdown .markdown-preview-view pre > code {
@@ -811,14 +781,18 @@
 }
 .cover-banner--enhanced-markdown .markdown-source-view .cm-line.HyperMD-codeblock {
   background: var(--code-background);
-  box-shadow: inset 3px 0 0 var(--text-accent);
 }
 .cover-banner--enhanced-markdown .cb-sh-cmd,
-.cover-banner--enhanced-markdown .cb-sh-cmd * { color: var(--text-accent) !important; font-weight: 600; }
+.cover-banner--enhanced-markdown .cb-sh-cmd * { color: var(--code-function, var(--text-accent)) !important; }
 .cover-banner--enhanced-markdown .cb-sh-flag,
-.cover-banner--enhanced-markdown .cb-sh-flag * { color: var(--color-cyan) !important; }
+.cover-banner--enhanced-markdown .cb-sh-flag * { color: var(--code-property, var(--color-cyan)) !important; }
 .cover-banner--enhanced-markdown .cb-sh-path,
-.cover-banner--enhanced-markdown .cb-sh-path * { color: var(--color-green) !important; }
+.cover-banner--enhanced-markdown .cb-sh-path * { color: var(--code-string, var(--color-green)) !important; }
+.cover-banner--enhanced-markdown .cb-sh-comment { color: var(--code-comment, var(--text-faint)) !important; }
+.cover-banner--enhanced-markdown .cb-sh-keyword { color: var(--code-keyword, var(--text-accent)) !important; }
+.cover-banner--enhanced-markdown .cb-sh-number { color: var(--code-value, var(--color-purple)) !important; }
+.cover-banner--enhanced-markdown .cb-sh-key { color: var(--code-property, var(--color-cyan)) !important; }
+.cover-banner--enhanced-markdown .cb-sh-string { color: var(--code-string, var(--color-green)) !important; }
 
 /* Raw frontmatter appears when it is not valid YAML or in Source mode. */
 .cover-banner--hide-properties .markdown-source-view .cm-line:has(.cm-hmd-frontmatter),
