@@ -145,6 +145,21 @@ SNAPSHOT = """() => {
     deck: Object.fromEntries(['comment', 'keyword', 'number'].map((t) => [t, [...document.querySelectorAll('.cb-sh-' + t)].filter(vis).map((e) => { const c = e.closest('.cm-line, code'); return [e.textContent, getComputedStyle(e).color !== getComputedStyle(c).color]; })])),
     fortran: (() => { const c = [...document.querySelectorAll('pre code.language-fortran')].filter(vis)[0]; return c ? c.querySelectorAll('span').length : null; })(),
     prosePlain: [...document.querySelectorAll('pre code, .cm-line')].filter(vis).filter((e) => e.textContent.includes('output is prose')).every((e) => !e.querySelector('.cb-sh')),
+    themeColours: (() => {
+      const probe = (cls, name) => {
+        const e = [...document.querySelectorAll(cls)].find(vis);
+        if (!e) return null;
+        const v = document.createElement('span');
+        v.style.color = `var(${name})`;
+        e.parentElement.append(v);
+        const want = getComputedStyle(v).color;
+        v.remove();
+        const deepest = e.querySelector('*') || e;
+        return getComputedStyle(deepest).color === want;
+      };
+      return {cmd: probe('.cb-sh-cmd', '--code-function'), flag: probe('.cb-sh-flag', '--code-property'), comment: probe('.cb-sh-comment', '--code-comment'), number: probe('.cb-sh-number', '--code-value'), keyword: probe('.cb-sh-keyword', '--code-keyword')};
+    })(),
+    proseFont: (() => { const e = [...document.querySelectorAll('.markdown-preview-view p, .cm-line:not(.HyperMD-codeblock)')].find((x) => vis(x) && x.textContent.includes('Paragraph')); return e ? getComputedStyle(e).fontFamily : null; })(),
     shellBold: [...document.querySelectorAll('.cb-sh')].filter(vis).some((e) => parseInt(getComputedStyle(e).fontWeight) > 400),
     whiteSpace: reading[0] ? getComputedStyle(reading[0]).whiteSpace : null,
     bannerBottom: bannerBox?.bottom, titleTop: titleBox?.top,
@@ -236,6 +251,8 @@ try:
                 check(s["prosePlain"], f"{name} {view}: prose in a code block stays plain")
                 if s["fortran"] is not None:
                     check(s["fortran"] > 0, f"{name} {view}: fortran block coloured", s["fortran"])
+                check(all(v is True for v in s["themeColours"].values()), f"{name} {view}: code colours match the theme, without !important", s["themeColours"])
+                check("Atkinson" in (s["proseFont"] or ""), f"{name} {view}: content font applies, without !important", (s["proseFont"] or "")[:40])
                 check(not s["shellBold"], f"{name} {view}: shell colours are not bold")
                 check(not s["heredocColoured"], f"{name} {view}: heredoc body stays plain", s["heredocColoured"])
                 top, bottom = s["titleTop"], s["bannerBottom"]
@@ -250,6 +267,23 @@ try:
         radius = s["radius"] or ""
         parts = radius.split()
         check(len(parts) == 4 and parts[0] != "0px" and parts[2] == "0px", "corners: top rounded, bottom square", radius)
+
+        hidden_title = page.evaluate("""async () => {
+            const view = document.querySelector('.workspace-leaf.mod-active .view-content');
+            view.classList.add('cover-banner--hide-title');
+            await new Promise((r) => setTimeout(r, 200));
+            const shown = [...view.querySelectorAll('.inline-title')].filter((e) => getComputedStyle(e).display !== 'none').length;
+            view.classList.remove('cover-banner--hide-title');
+            return shown;
+        }""")
+        check(hidden_title == 0, "hide title still works without !important", hidden_title)
+        fonts_ok = page.evaluate("""async () => {
+            const names = ['Inter', 'Source Serif 4', 'IBM Plex Mono', 'IBM Plex Sans', 'Atkinson Hyperlegible', 'Lato', 'Open Sans', 'Noto Sans', 'Literata'];
+            const out = {};
+            for (const n of names) { const loaded = await document.fonts.load(`16px "${n}"`); out[n] = loaded.some((f) => f.family.replace(/["']/g, '') === n && f.status === 'loaded'); }
+            return out;
+        }""")
+        check(all(fonts_ok.values()), "all nine bundled fonts load", fonts_ok)
 
         # Hide and show frontmatter, including frontmatter that is not valid YAML.
         open_note("Bad.md")

@@ -2198,6 +2198,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     } catch { return; }
     if (!ViewPlugin || !Decoration || !RangeSetBuilder) return;
     const marks = {};
+    const frontmatterLine = Decoration.line({ class: "cb-frontmatter" });
     for (const type of ["cmd", "flag", "path", "comment", "keyword", "number", "key", "string"]) marks[type] = Decoration.mark({ class: `cb-sh cb-sh-${type}` });
     const build = (doc) => {
       const builder = new RangeSetBuilder();
@@ -2211,7 +2212,17 @@ module.exports = class CoverBannerPlugin extends Plugin {
         });
         body = [];
       };
-      for (let n = 1; n <= doc.lines; n++) {
+      // Frontmatter stays marked when it is not valid YAML, so it can be hidden like Properties.
+      let first = 1;
+      if (doc.lines > 1 && doc.line(1).text.trimEnd() === "---") {
+        let close = 2;
+        while (close <= doc.lines && doc.line(close).text.trimEnd() !== "---") close++;
+        if (close <= doc.lines) {
+          for (let n = 1; n <= close; n++) builder.add(doc.line(n).from, doc.line(n).from, frontmatterLine);
+          first = close + 1;
+        }
+      }
+      for (let n = first; n <= doc.lines; n++) {
         const line = doc.line(n);
         const open = /^\s*(`{3,}|~{3,})\s*([^\s`]*)/.exec(line.text);
         if (!fence) {

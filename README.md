@@ -14,7 +14,7 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 - Parallax motion, sticky banners, height, dimming, radius, choice of rounded corners, and fit controls
 - Hideable properties, raw frontmatter, and note titles, with a command and banner button to hide or show properties
 - Enhanced styling for Markdown, code, JSON, JSONL, LaTeX, and AI transcripts
-- Clearer shell code: commands, flags, and paths are coloured in Reading view and Live Preview
+- Clearer code: shell commands, flags, and paths are coloured in Reading view and Live Preview, and so are unlabelled input decks, file listings, and `!` comments
 - Content font presets for reading, technical notes, and long-form writing
 - Reading templates for balanced, bookish, focused, and technical notes
 - A dashboard for per-note and global settings
@@ -157,6 +157,22 @@ You can also open the dashboard from the Cinematic Covers ribbon icon.
 API keys are entered locally in plugin settings and are not included in the plugin release. The published repository does not contain your `data.json` settings file.
 
 Pexels and Pixabay are optional. You can use built-in covers, local images, URLs, Google Books, and the default banner without configuring an image-provider key. If the default photo cannot load, a built-in cover is shown instead.
+
+## Network use
+
+The plugin has no analytics or telemetry. It makes requests only for these features:
+
+| Domain | When | What is sent |
+|---|---|---|
+| `api.github.com`, `github.com` | Update check at startup and every six hours; downloading an update | Nothing from your notes |
+| `api.pexels.com` | You search photos with your own Pexels key | Your search text and key |
+| `www.googleapis.com` | Auto-set falls back to Google Books | The note's title |
+| The URL in a note | Auto-set reads that page for its image | A request to that URL |
+| `api.iconify.design` | A note uses an Iconify icon | The icon's name |
+| `images.unsplash.com` | The default banner photo is shown | A request for that image |
+| A banner or icon URL you set | A note uses that remote image | A request to that URL |
+
+Auto-set on open is off by default. Built-in covers, local images, and emoji icons make no requests.
 
 ## Image performance
 

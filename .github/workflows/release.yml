@@ -1,0 +1,41 @@
+# Publishes a release with signed build provenance when a version tag is pushed.
+# The tag's annotation message becomes the release notes.
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: git fetch --force --tags origin
+      - name: Check the tag matches the manifest
+        run: test "$(node -p "require('./manifest.json').version")" = "$GITHUB_REF_NAME"
+      - name: Run tests
+        run: for t in tests/*.cjs; do node "$t"; done
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css
+          --title "Cinematic Covers $GITHUB_REF_NAME"
+          --notes-from-tag
+          --verify-tag
+          --latest
