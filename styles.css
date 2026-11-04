@@ -75,6 +75,7 @@
 .view-content.cover-banner--hide-properties.cover-banner--hide-properties .metadata-properties,
 .view-content.cover-banner--hide-properties.cover-banner--hide-properties .markdown-properties,
 .view-content.cover-banner--hide-properties.cover-banner--hide-properties [data-type="properties"],
+.view-content.cover-banner--hide-properties .markdown-source-view.is-live-preview.show-properties .metadata-container:not(.mod-error),
 .view-content .cover-banner__properties-hidden {
   display: none;
 }

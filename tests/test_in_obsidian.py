@@ -323,6 +323,21 @@ try:
         check(toggled and hidden["raw"] + hidden["widget"] == 0 and hidden["body"], "frontmatter: command hides it, body stays", hidden)
         page.screenshot(path=str(work / "frontmatter_hidden.png"))
         page.evaluate("app.commands.executeCommandById('cover-banner:toggle-properties')")
+
+        # Valid YAML in Live Preview: Obsidian's own show-properties rule must not bring the block back.
+        page.evaluate("""async () => {
+            const leaf = app.workspace.getLeaf(false);
+            await leaf.openFile(app.vault.getAbstractFileByPath('Drag.md'));
+            await leaf.setViewState({type: 'markdown', state: {file: 'Drag.md', mode: 'source', source: false}});
+        }""")
+        page.wait_for_timeout(1200)
+        block = "[...document.querySelectorAll('.markdown-source-view.is-live-preview.show-properties .metadata-container')].filter((e) => e.offsetParent !== null && e.offsetHeight > 0).length"
+        check(page.evaluate(block) == 1, "properties: valid note shows the block in Live Preview", page.evaluate(block))
+        page.evaluate("app.commands.executeCommandById('cover-banner:toggle-properties')")
+        page.wait_for_timeout(800)
+        check(page.evaluate(block) == 0, "properties: hiding removes the whole block in Live Preview", page.evaluate(block))
+        page.evaluate("app.commands.executeCommandById('cover-banner:toggle-properties')")
+        page.wait_for_timeout(500)
         page.wait_for_timeout(800)
         again = page.evaluate(visible_fm)
         check(again["raw"] + again["widget"] > 0, "frontmatter: command shows it again", again)

@@ -20,7 +20,7 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 - Parallax motion, sticky banners, height, dimming, radius, choice of rounded corners, and fit controls
 - Hideable properties, raw frontmatter, and note titles, with a command and banner button to hide or show properties
 - Enhanced styling for Markdown, code, JSON, JSONL, LaTeX, and AI transcripts
-- Clearer code: shell commands, flags, and paths are coloured in Reading view and Live Preview, and so are unlabelled input decks, file listings, and `!` comments
+- Clearer code: shell commands, flags, and paths are coloured in Reading view and Live Preview, and so are unlabelled config files, file listings, and `!` comments
 - Content font presets for reading, technical notes, and long-form writing
 - Reading templates for balanced, bookish, focused, and technical notes
 - A dashboard for per-note and global settings
