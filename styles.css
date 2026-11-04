@@ -34,6 +34,9 @@
   z-index: 0;
 }
 
+.cover-banner--draggable { cursor: grab; }
+.cover-banner--draggable.is-dragging { cursor: grabbing; user-select: none; }
+
 /* Dim overlay */
 .cover-banner::after {
   content: "";

@@ -417,6 +417,7 @@ const DEFAULT_SETTINGS = {
   // behavior
   pinBanner: false,
   parallaxEnabled: true,
+  dragToReposition: true,
   parallaxStrength: 0.22, // 0..1 (0.22 = subtle)
 
   autoUpdateEnabled: true,
@@ -460,12 +461,44 @@ function normalizeFieldValue(v) {
     s = s.slice(1, -1).trim();
   }
 
-  const wiki = s.match(/^\[\[([^\]]+)\]\]$/);
+  const wiki = s.match(/^!?\[\[([^\]]+)\]\]$/);
   if (wiki) s = wiki[1].trim();
 
   if (s.includes("|")) s = s.split("|")[0].trim();
 
   return s || null;
+}
+
+// Crop position from the Banners plugin's banner_x and banner_y, each 0 to 1.
+function bannerFocus(fm) {
+  const part = (v) => {
+    if (v === undefined || v === null || v === "") return null;
+    const n = Number(v);
+    return Number.isFinite(n) ? `${Math.round(Math.min(1, Math.max(0, n)) * 1000) / 10}%` : null;
+  };
+  const x = part(fm?.banner_x);
+  const y = part(fm?.banner_y);
+  return x || y ? `${x || "50%"} ${y || "50%"}` : null;
+}
+
+function parseFocus(focus) {
+  const m = /^([\d.]+)% ([\d.]+)%$/.exec(focus || "");
+  return m ? { x: Number(m[1]) / 100, y: Number(m[2]) / 100 } : { x: 0.5, y: 0.5 };
+}
+
+// New crop position after dragging by (dx, dy) pixels. With object-fit: cover, only the
+// part of the image that overflows the banner can move, and it follows the pointer.
+function dragFocus(start, dx, dy, box, natural) {
+  if (!natural.width || !natural.height) return { x: start.x, y: start.y };
+  const scale = Math.max(box.width / natural.width, box.height / natural.height);
+  const shift = (from, delta, overflow) => {
+    if (overflow < 1) return from;
+    return Math.round(Math.min(1, Math.max(0, from - delta / overflow)) * 1000) / 1000;
+  };
+  return {
+    x: shift(start.x, dx, natural.width * scale - box.width),
+    y: shift(start.y, dy, natural.height * scale - box.height),
+  };
 }
 
 function isHttpUrl(s) {
@@ -549,6 +582,24 @@ function pickOgImage(html, baseUrl) {
     if (url && isHttpUrl(url) && !isLikelyFaviconOrIconValue(url)) return url;
   }
   return null;
+}
+
+// The largest icon a page declares, or the site's usual favicon location.
+function pickFavicon(html, baseUrl) {
+  let best = null;
+  let bestSize = -1;
+  for (const tag of html.match(/<link\b[^>]*>/gi) || []) {
+    const attr = (name) => new RegExp(`\\b${name}\\s*=\\s*(?:"([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag)?.slice(1).find((v) => v !== undefined);
+    if (!/(^|\s)(icon|apple-touch-icon)(\s|$)/i.test(attr("rel") || "")) continue;
+    const href = attr("href");
+    if (!href || /^data:/i.test(href)) continue;
+    const size = Number(/(\d+)x\d+/i.exec(attr("sizes") || "")?.[1] || 0);
+    if (size > bestSize) {
+      best = absolutizeUrl(href, baseUrl);
+      bestSize = size;
+    }
+  }
+  return best || absolutizeUrl("/favicon.ico", baseUrl);
 }
 
 async function ensureFolder(app, folderPath) {
@@ -1083,6 +1134,16 @@ class CoverBannerDashboardView extends ItemView {
       this.plugin.refreshDashboard();
     });
 
+    const dragRow = el.createDiv({ cls: "cover-banner-dashboard__row" });
+    dragRow.createDiv({ text: "Drag to reposition", cls: "cover-banner-dashboard__label" });
+    const dragToggle = dragRow.createEl("input", { type: "checkbox" });
+    dragToggle.checked = !!this.plugin.settings.dragToReposition;
+    dragToggle.addEventListener("change", async () => {
+      this.plugin.settings.dragToReposition = !!dragToggle.checked;
+      await this.plugin.saveSettings();
+      this.plugin.requestRefresh();
+    });
+
     const parRow = el.createDiv({ cls: "cover-banner-dashboard__row" });
     parRow.createDiv({ text: "Parallax", cls: "cover-banner-dashboard__label" });
     const parToggle = parRow.createEl("input", { type: "checkbox" });
@@ -1268,6 +1329,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
       "autoUpdateEnabled",
       "pinBanner",
       "parallaxEnabled",
+      "dragToReposition",
       "showBannerButtons",
       "hideProperties",
       "hideTitle",
@@ -1638,7 +1700,8 @@ module.exports = class CoverBannerPlugin extends Plugin {
   }
 
   getFaviconValueFromFrontmatter(fm) {
-    return normalizeFieldValue(fm?.[this.settings.faviconField || "favicon"]) || null;
+    // banner_icon is the Banners plugin's field, so notes moved from it keep their icon.
+    return normalizeFieldValue(fm?.[this.settings.faviconField || "favicon"]) || normalizeFieldValue(fm?.banner_icon) || null;
   }
 
   getFaviconValueForActive() {
@@ -1773,7 +1836,7 @@ module.exports = class CoverBannerPlugin extends Plugin {
     const rawValue = this.getBannerValueFromFrontmatter(fm) || normalizeFieldValue(this.settings.defaultBanner);
     const src = this.resolveBannerValueToSrc(file, rawValue);
     // Reading view and Live Preview scroll separately, so each needs its own reserved space.
-    const renderKey = JSON.stringify([file.path, src, view.getMode?.(), this.getFaviconValueFromFrontmatter(fm),
+    const renderKey = JSON.stringify([file.path, src, bannerFocus(fm), view.getMode?.(), this.getFaviconValueFromFrontmatter(fm),
       ...["heightPx", "dim", "borderRadiusPx", "bannerCorners", "hideProperties", "objectFit", "fadeBottom", "pinBanner",
         "showBannerButtons", "parallaxEnabled", "parallaxStrength", "defaultFavicon"].map(key => this.settings[key])]);
     viewContent.querySelectorAll(".cover-banner__properties-hidden").forEach(el => {
@@ -1839,9 +1902,12 @@ module.exports = class CoverBannerPlugin extends Plugin {
       // Only a default that cannot load (offline, blocked) is replaced. A broken cover
       // the user chose stays visible as broken so they can fix it.
       if (!this.getBannerValueFromFrontmatter(fm)) img.addEventListener("error", () => { img.src = svgDataUri(BUILTIN_COVERS[0].svg); }, { once: true });
+      const focus = bannerFocus(fm);
+      if (focus) img.style.objectPosition = focus;
       img.src = src;
       banner.appendChild(img);
       imgEl = img;
+      this.enableBannerDrag(banner, img, file);
     } else {
       banner.classList.add("is-default");
     }
@@ -2140,6 +2206,45 @@ module.exports = class CoverBannerPlugin extends Plugin {
     return true;
   }
 
+  // Drag a cover to choose its crop; saved as banner_x and banner_y, as the Banners plugin does.
+  enableBannerDrag(banner, img, file) {
+    if (!this.settings.dragToReposition || (this.settings.objectFit || "cover") !== "cover") return;
+    img.draggable = false;
+    banner.classList.add("cover-banner--draggable");
+    banner.addEventListener("pointerdown", (down) => {
+      if (down.button !== 0 || down.pointerType === "touch") return;
+      if (down.target.closest?.(".cover-banner__actions, .cover-banner__icon")) return;
+      const doc = banner.ownerDocument;
+      const start = parseFocus(img.style.objectPosition);
+      const box = banner.getBoundingClientRect();
+      const natural = { width: img.naturalWidth, height: img.naturalHeight };
+      let moved = false;
+      let focus = start;
+      const onMove = (e) => {
+        const dx = e.clientX - down.clientX;
+        const dy = e.clientY - down.clientY;
+        if (!moved && Math.hypot(dx, dy) < 4) return;
+        moved = true;
+        banner.classList.add("is-dragging");
+        focus = dragFocus(start, dx, dy, box, natural);
+        img.style.objectPosition = `${focus.x * 100}% ${focus.y * 100}%`;
+      };
+      const onUp = async () => {
+        doc.removeEventListener("pointermove", onMove);
+        doc.removeEventListener("pointerup", onUp);
+        banner.classList.remove("is-dragging");
+        if (!moved) return;
+        await this.app.fileManager.processFrontMatter(file, (fm) => {
+          fm.banner_x = focus.x;
+          fm.banner_y = focus.y;
+        });
+      };
+      doc.addEventListener("pointermove", onMove);
+      doc.addEventListener("pointerup", onUp);
+      down.preventDefault();
+    });
+  }
+
   async toggleProperties() {
     this.settings.hideProperties = !this.settings.hideProperties;
     await this.saveSettings();
@@ -2279,9 +2384,21 @@ module.exports = class CoverBannerPlugin extends Plugin {
       if (!localLink) return false;
 
       await this.setFrontmatterPrimary(file, localLink);
+      await this.autoSetFavicon(file, pickFavicon(html, pageUrl));
       return true;
     } catch {
       return false;
+    }
+  }
+
+  // Keeps an icon the note already has, and writes only a favicon that actually loads.
+  async autoSetFavicon(file, iconUrl) {
+    if (!iconUrl || this.getFaviconValueFromFrontmatter(this.getFrontmatterSafe(file))) return;
+    try {
+      const res = await requestUrl({ url: iconUrl, method: "GET" });
+      if (res.status < 400 && res.arrayBuffer?.byteLength) await this.setFaviconField(file, iconUrl);
+    } catch {
+      // A missing favicon must not undo the cover that was just set.
     }
   }
 

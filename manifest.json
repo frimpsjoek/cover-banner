@@ -1,7 +1,7 @@
 {
   "id": "cover-banner",
   "name": "Cinematic Covers",
-  "version": "0.6.8",
+  "version": "0.6.9",
   "minAppVersion": "1.4.0",
   "description": "Cover banners, readable fonts, and cleaner notes, with built-in covers, note icons, syntax colours for code and input decks, and title and properties controls.",
   "author": "Joseph Frimpong",

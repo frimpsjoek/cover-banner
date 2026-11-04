@@ -32,7 +32,7 @@ if asar:
     shutil.copy(asar, profile / pathlib.Path(asar).name)
 for name in ("main.js", "styles.css", "manifest.json"):
     shutil.copy(pathlib.Path(plugin) / name, dst / name)
-(dst / "data.json").write_text(json.dumps({"contentFont": "atkinson", "codeFont": "jetbrains", "bannerCorners": "top"}))
+(dst / "data.json").write_text(json.dumps({"contentFont": "atkinson", "codeFont": "jetbrains", "bannerCorners": "top", "autoUpdateEnabled": False}))
 (vault / ".obsidian/community-plugins.json").write_text("[]")
 (vault / "Code.md").write_text(r"""# Code test
 
@@ -93,6 +93,8 @@ Inline $\chi_0$ and display:
 
 $$\Gamma(E) = \Gamma_{\text{hole}} + \frac{1}{\pi}\arctan(x)$$
 """)
+(vault / "tall.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><rect width="1000" height="1000" fill="#345"/></svg>')
+(vault / "Drag.md").write_text('---\ncover: "[[tall.svg]]"\n---\n\nDrag test.\n')
 (vault / "Bad.md").write_text('---\ntopic: broken\nprovenance_key: "[DFT s.N]" = slide N of the deck\n---\n\nBody text of the note.\n')
 (profile / "obsidian.json").write_text(json.dumps(
     {"vaults": {"testvault0000000": {"path": str(vault), "ts": int(time.time() * 1000), "open": True}}}))
@@ -171,7 +173,7 @@ SNAPSHOT = """() => {
 port = 9346
 proc = subprocess.Popen(
     ["/Applications/Obsidian.app/Contents/MacOS/Obsidian", f"--remote-debugging-port={port}", f"--user-data-dir={profile}"],
-    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
+    stdout=open(work / "obsidian.log", "w"), stderr=subprocess.STDOUT, start_new_session=True)
 errors = []
 try:
     with sync_playwright() as p:
@@ -234,6 +236,11 @@ try:
                 return window.__cbStable >= 5;
             }""", polling=200, timeout=15000)
             page.evaluate("window.__cbStable = 0")
+            # The editor paints its lines after the mode switch; a block that never appears still fails below.
+            try:
+                page.wait_for_function("[...document.querySelectorAll('.markdown-preview-view pre code, .cm-line.HyperMD-codeblock')].some((e) => e.offsetParent !== null)", polling=100, timeout=8000)
+            except Exception:
+                print("note: code block not visible after 8 s")
 
         for theme, name in (("moonstone", "light"), ("obsidian", "dark")):
             page.evaluate("(t) => app.changeTheme ? app.changeTheme(t) : app.setTheme(t)", theme)
@@ -285,6 +292,22 @@ try:
         }""")
         check(all(fonts_ok.values()), "all nine bundled fonts load", fonts_ok)
 
+        open_note("Drag.md", "preview")
+        drag_box = page.evaluate("""() => { const b = [...document.querySelectorAll('.cover-banner')].find((e) => e.offsetParent !== null).getBoundingClientRect(); return {x: b.x + b.width / 2, y: b.y + 60}; }""")
+        read_drag = lambda: (vault / "Drag.md").read_text()
+        page.mouse.move(drag_box["x"], drag_box["y"]); page.mouse.down(); page.mouse.up(); page.wait_for_timeout(600)
+        check("banner_y" not in read_drag(), "drag: a plain click writes nothing")
+        page.mouse.move(drag_box["x"], drag_box["y"]); page.mouse.down(); page.mouse.move(drag_box["x"], drag_box["y"] + 50, steps=5); page.mouse.up(); page.wait_for_timeout(1500)
+        text = read_drag()
+        y_lines = [l for l in text.split("\n") if l.startswith("banner_y:")]
+        check(y_lines and float(y_lines[0].split(":")[1]) < 0.5, "drag: moving down saves a smaller banner_y", y_lines)
+        drawn = page.evaluate("[...document.querySelectorAll('.cover-banner__img')].find((e) => e.offsetParent !== null)?.style.objectPosition")
+        check(drawn and drawn.startswith("50%") and y_lines and abs(float(drawn.split()[1].rstrip("%")) - 100 * float(y_lines[0].split(":")[1])) < 0.2, "drag: position still applied after saving", drawn)
+        for offset in (20, -30, 10):
+            page.mouse.move(drag_box["x"], drag_box["y"]); page.mouse.down(); page.mouse.move(drag_box["x"], drag_box["y"] + offset, steps=5); page.mouse.up(); page.wait_for_timeout(800)
+        lines = read_drag().split("\n")
+        check(sum(l.startswith("banner_y:") for l in lines) == 1 and sum(l.startswith("banner_x:") for l in lines) == 1 and lines.count("---") == 2, "drag: repeated saves do not repeat frontmatter", lines[:8])
+
         # Hide and show frontmatter, including frontmatter that is not valid YAML.
         open_note("Bad.md")
         visible_fm = """() => ({
@@ -305,6 +328,9 @@ try:
         check(again["raw"] + again["widget"] > 0, "frontmatter: command shows it again", again)
 
         check(not errors, "no console errors", errors[:3] if errors else "")
+except Exception:
+    print(f"Obsidian exit status at failure: {proc.poll()}; log at {work / 'obsidian.log'}")
+    raise
 finally:
     # Wait for the exit: a new run reuses this profile path, and a dying instance would block it.
     try:

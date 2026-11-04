@@ -4,6 +4,10 @@
 
 Give Obsidian notes a calm, cinematic reading experience with Notion-style cover banners, subtle motion, note icons, and refined Markdown typography.
 
+![A plain note gains a cover, then a clipped YouTube video and a clipped web page get their own image and icon](images/demo.gif)
+
+<sub>Demo images: [Big Buck Bunny](https://peach.blender.org/) © Blender Foundation, CC BY 3.0. [Earthrise](https://en.wikipedia.org/wiki/Earthrise), NASA, public domain.</sub>
+
 ## What it adds
 
 - Cinematic cover banners with a natural bottom fade
@@ -11,6 +15,8 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 - URL- and book-based automatic banner selection
 - Built-in covers that need no API key or network, and an optional Pexels image search
 - Emoji, Iconify, favicon, and local-image note icons
+- Drag a cover to choose its crop
+- Web clips: a YouTube thumbnail or a page's preview image becomes the cover, and the site's favicon becomes the icon
 - Parallax motion, sticky banners, height, dimming, radius, choice of rounded corners, and fit controls
 - Hideable properties, raw frontmatter, and note titles, with a command and banner button to hide or show properties
 - Enhanced styling for Markdown, code, JSON, JSONL, LaTeX, and AI transcripts
@@ -158,6 +164,10 @@ API keys are entered locally in plugin settings and are not included in the plug
 
 Pexels and Pixabay are optional. You can use built-in covers, local images, URLs, Google Books, and the default banner without configuring an image-provider key. If the default photo cannot load, a built-in cover is shown instead.
 
+## Moving from Banners
+
+Notes written for the [Banners](https://github.com/noatpad/obsidian-banners) plugin by noatpad (MIT) work without changes. Cinematic Covers reads its `banner` image forms, `banner_x` and `banner_y` crop position, and `banner_icon`. Drag to reposition follows the same idea and saves to the same fields. No Banners code is included. `banner_lock` is not read.
+
 ## Network use
 
 The plugin has no analytics or telemetry. It makes requests only for these features:
@@ -166,6 +176,7 @@ The plugin has no analytics or telemetry. It makes requests only for these featu
 |---|---|---|
 | `api.github.com`, `github.com` | Update check at startup and every six hours; downloading an update | Nothing from your notes |
 | `api.pexels.com` | You search photos with your own Pexels key | Your search text and key |
+| A clipped note's site | Auto-set reads its preview image and favicon | Requests to that site; the favicon URL is saved in the note |
 | `www.googleapis.com` | Auto-set falls back to Google Books | The note's title |
 | The URL in a note | Auto-set reads that page for its image | A request to that URL |
 | `api.iconify.design` | A note uses an Iconify icon | The icon's name |
