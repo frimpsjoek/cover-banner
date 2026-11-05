@@ -8,24 +8,6 @@ Give Obsidian notes a calm, cinematic reading experience with Notion-style cover
 
 <sub>Demo images: [Big Buck Bunny](https://peach.blender.org/) © Blender Foundation, CC BY 3.0. [Earthrise](https://en.wikipedia.org/wiki/Earthrise), NASA, public domain.</sub>
 
-## Screenshots
-
-![A clipped YouTube video with its thumbnail as the cover and its icon](images/screenshots/02-youtube-clip.jpg)
-
-![A clipped web page with its image as the cover and its favicon](images/screenshots/03-web-clip.jpg)
-
-![Notes with covers from Pexels, Pixabay and Unsplash](images/screenshots/05-pexels-pixabay-unsplash.jpg)
-
-![Equations set apart from the text](images/screenshots/08-equations.jpg)
-
-![Coloured code, including unlabelled blocks](images/screenshots/09-code.jpg)
-
-![Callouts, tables, highlights and task lists](images/screenshots/10-formatting.jpg)
-
-![Formatted JSON and an AI chat](images/screenshots/11-json-and-ai-chats.jpg)
-
-![The dashboard with every control](images/screenshots/14-dashboard.jpg)
-
 ## What it adds
 
 - Cinematic cover banners with a natural bottom fade
